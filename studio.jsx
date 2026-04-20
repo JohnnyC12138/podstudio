@@ -62,12 +62,31 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
         { key: 'host', name: 'Noa Weiss', role: 'Solo', tint: 'terracotta', status: 'ready', you: true },
       ];
     }
-    const hostEntry = { key: 'ps-host', name: isHost ? 'You (Host)' : 'Host', role: 'Host', tint: 'terracotta', status: 'ready', you: isHost };
-    const peerEntries = Object.entries(peers).map(([id, p]) => ({
-      key: id, name: p.name || 'Guest', role: 'Guest', tint: p.tint || 'olive',
-      status: p.status || 'joining', stream: p.stream, you: !isHost && id.includes('-host'),
-    }));
-    return [hostEntry, ...peerEntries];
+    const peerEntries = Object.entries(peers).map(([id, p]) => {
+      const peerIsHost = id.includes('-host');
+      return {
+        key: id,
+        name: p.name || (peerIsHost ? 'Host' : 'Guest'),
+        role: peerIsHost ? 'Host' : 'Guest',
+        tint: peerIsHost ? 'terracotta' : (p.tint || 'olive'),
+        status: p.status || 'joining',
+        stream: p.stream,
+        you: false,
+      };
+    });
+    if (isHost) {
+      return [
+        { key: 'self-host', name: 'You (Host)', role: 'Host', tint: 'terracotta', status: 'ready', you: true },
+        ...peerEntries,
+      ];
+    }
+    const hostPeer = peerEntries.find(p => p.role === 'Host') || { key: 'host-waiting', name: 'Host', role: 'Host', tint: 'terracotta', status: 'joining' };
+    const otherGuests = peerEntries.filter(p => p.role !== 'Host');
+    return [
+      hostPeer,
+      { key: 'self-guest', name: 'You (Guest)', role: 'Guest', tint: 'olive', status: 'ready', you: true },
+      ...otherGuests,
+    ];
   }, [isRoomSession, isGuests, peers, isHost]);
 
   // Request mic on sound-check entry
@@ -719,8 +738,17 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
           </div>
         </div>
 
-        {/* Right — live chat */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', maxHeight: 520, alignSelf: 'center' }}>
+        {/* Right — visible room surface + live chat */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'center', minWidth: 0 }}>
+          <StudioRoomCard
+            guests={guests}
+            roomId={roomId}
+            isHost={isHost}
+            connectionStatus={connectionStatus}
+            openInvite={openInvite}
+          />
+
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', maxHeight: 390 }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="rec-dot" style={{ background: 'var(--sage)', animation: 'none' }} />
             <span style={{ fontSize: 13, fontWeight: 600 }}>Live chat</span>
@@ -763,7 +791,82 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
             />
             <button className="btn btn-primary" onClick={send}><I.ChevronRight size={13} /></button>
           </div>
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StudioRoomCard({ guests, roomId, isHost, connectionStatus, openInvite }) {
+  const connectedCount = guests.filter(g => ['ready', 'joined'].includes(g.status)).length;
+  const hasGuest = guests.some(g => g.role === 'Guest' && !g.you);
+  const statusText =
+    connectionStatus === 'connected' ? 'Room live' :
+    connectionStatus === 'reconnecting' ? 'Reconnecting' :
+    connectionStatus === 'error' ? 'Connection issue' :
+    'Opening room';
+
+  const seats = hasGuest || !isHost
+    ? guests
+    : [...guests, { key: 'waiting-guest', name: 'Waiting for guest', role: 'Guest', tint: 'olive', status: 'invited', waiting: true }];
+
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden', background: 'oklch(0.14 0.02 165 / 0.88)', borderColor: 'oklch(0.78 0.1 82 / 0.22)' }}>
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--brass-tint)', color: 'var(--brass-bright)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <I.Users size={15} />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 650, color: 'var(--fg-0)' }}>Studio room</div>
+          <div className="mono" style={{ fontSize: 10.5, color: 'var(--fg-3)', marginTop: 2 }}>ROOM {roomId}</div>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: connectionStatus === 'error' ? 'oklch(0.82 0.16 25)' : 'var(--sage)', fontSize: 11.5, flexShrink: 0 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor', boxShadow: '0 0 12px currentColor' }} />
+          {statusText}
+        </div>
+      </div>
+
+      <div style={{ padding: 14, display: 'grid', gap: 8 }}>
+        {seats.map(g => {
+          const live = ['ready', 'joined'].includes(g.status);
+          const waiting = g.waiting || g.status === 'invited' || g.status === 'joining';
+          return (
+            <div key={g.key} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 11px',
+              background: live ? 'oklch(0.78 0.1 82 / 0.08)' : 'var(--bg-2)',
+              border: live ? '1px solid oklch(0.78 0.1 82 / 0.22)' : '1px dashed var(--line-1)',
+              borderRadius: 8,
+            }}>
+              <Avatar name={g.name} tint={g.tint} size={34} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, color: live ? 'var(--fg-0)' : 'var(--fg-2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {g.name}
+                </div>
+                <div style={{ marginTop: 2, fontSize: 10.5, color: waiting ? 'var(--brass-bright)' : 'var(--fg-3)' }}>
+                  {g.you ? 'You' : g.role} · {live ? 'in room' : waiting ? 'waiting' : g.status}
+                </div>
+              </div>
+              <div style={{ width: 54, display: 'flex', justifyContent: 'flex-end' }}>
+                <AnimatedLevel active={live && !waiting} segments={10} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ padding: '0 14px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="chip" style={{ background: 'var(--bg-2)' }}>
+          <I.Mic size={10} /> {connectedCount} in room
+        </div>
+        <div style={{ flex: 1 }} />
+        {isHost && !hasGuest && (
+          <button className="btn" style={{ fontSize: 11, padding: '5px 10px' }} onClick={openInvite}>
+            <I.Plus size={11} /> Invite
+          </button>
+        )}
       </div>
     </div>
   );

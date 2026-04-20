@@ -154,6 +154,7 @@ greenRoom → check → countdown → record → wrap
 
 **Sub-components:**
 - `GreenRoom` — waiting room with episode info, chat, invite button, room link display
+- `StudioRoomCard` — explicit two-person room surface in Green Room. Shows room code, connection status, host/guest seats, and a waiting guest slot before anyone joins.
 - `WrapScreen` — post-recording summary with duration stats and "Go to editor" CTA
 - `RealWaveform` — canvas waveform driven by live `AnalyserNode`. Falls back to animated sine wave when no analyser. Uses `ResizeObserver` + `requestAnimationFrame`.
 - `GuestSeat` — video-call-style tile for each guest in the center stage area
@@ -255,6 +256,8 @@ Root component and global state:
 ### Invite flow fix (April 2026)
 - **InviteModal** now has an "Open Green Room →" footer button that calls `onClose()`. Since `openInvite` already sets `page='studio'` before opening the modal, the host is already in Green Room behind it — closing the modal reveals it cleanly.
 - **Guest routing** was already working correctly via `?room=ROOMID` URL param parsed inline in `app.jsx`. Guests land in `StudioPage` with `isHost=false` and `phase='greenRoom'`.
+- **Studio room surface** now exists in Green Room via `StudioRoomCard`. It makes the shared room visible to both host and guest, including room code, connection state, participant seats, and waiting slot.
+- **Participant list normalization** now avoids duplicate Host entries on the guest side and adds explicit "You (Host)" / "You (Guest)" self seats.
 - **GreenRoom guest view** now shows a status pill ("In the green room · waiting for host") instead of "Go to sound check" — the host-only button is conditionally rendered with `{isHost && ...}`.
 - **Phase sync (mobile-safe)**: guests no longer auto-advance to 'check' or 'record' when the host broadcasts a phase change. Instead, a `pendingPhase` banner appears ("Host started sound check — tap to join") requiring a manual user gesture. This unblocks `getUserMedia` on mobile Safari which requires a tap to grant mic access.
 
