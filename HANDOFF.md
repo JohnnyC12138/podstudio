@@ -2,6 +2,8 @@
 
 _Last updated: April 2026_
 
+**Live site: https://johnnyc12138.github.io/podstudio/** (GitHub Pages, deploys automatically from `main`)
+
 ---
 
 ## 1. What Is Podstudio
@@ -260,6 +262,14 @@ Root component and global state:
 - **Participant list normalization** now avoids duplicate Host entries on the guest side and adds explicit "You (Host)" / "You (Guest)" self seats.
 - **GreenRoom guest view** now shows a status pill ("In the green room · waiting for host") instead of "Go to sound check" — the host-only button is conditionally rendered with `{isHost && ...}`.
 - **Phase sync (mobile-safe)**: guests no longer auto-advance to 'check' or 'record' when the host broadcasts a phase change. Instead, a `pendingPhase` banner appears ("Host started sound check — tap to join") requiring a manual user gesture. This unblocks `getUserMedia` on mobile Safari which requires a tap to grant mic access.
+
+### Room join reliability + public deployment (April 2026)
+- **Guest connect retry** (`room.jsx`): guests now retry the data connection to the host every 3s until it opens (previously a single silent attempt — the root cause of "both sides stuck in Green Room"). `peer-unavailable` errors keep status at `connecting` instead of fatal `error`; an 8s safety timeout drops hung attempts and retries.
+- **Host reload recovery** (`room.jsx`): `unavailable-id` (stale broker registration after a reload) now destroys and re-creates the peer after 2.5s instead of dying.
+- **Guest connected status** (`room.jsx`): guests only show `connected` once the data channel to the host actually opens (previously showed connected as soon as their own peer registered).
+- **Mid-recording track pickup** (`studio.jsx`): if a guest's stream arrives after the host already started recording, a `createTrackRecorder` is started for it on the fly — late joiners are recorded.
+- **Mic-gated phase sync** (`studio.jsx`): guests defer `check`/`countdown`/`record` broadcasts behind the "tap to join" banner whenever they have no mic stream; accepting always routes through Sound Check so `getUserMedia` runs inside the tap's gesture. `wrap` from the host stops the guest's local recorder so they keep their own track.
+- **Deployment**: repo made public, GitHub Pages enabled (branch `main`, root). `index.html` redirects to `Podstudio.html` preserving `?room=` params. HTTPS means mic works on every device — invite links work across networks, no shared WiFi needed.
 
 ### Current validation status
 - Solo recording flow is implemented in-browser.
