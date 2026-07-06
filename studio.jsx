@@ -1,5 +1,63 @@
 // Recording Studio — immersive broadcast space
 
+// Real audio level (0..1 RMS) for any MediaStream — drives every meter in the studio
+function useStreamLevel(stream) {
+  const [level, setLevel] = React.useState(0);
+  React.useEffect(() => {
+    if (!stream || stream.getAudioTracks().length === 0) { setLevel(0); return; }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    let ctx, src, raf;
+    try {
+      ctx = new Ctx();
+      src = ctx.createMediaStreamSource(stream);
+      const an = ctx.createAnalyser();
+      an.fftSize = 256;
+      an.smoothingTimeConstant = 0.55;
+      src.connect(an);
+      const data = new Uint8Array(an.fftSize);
+      let last = 0;
+      const tick = (t) => {
+        if (t - last > 80) { // ~12fps is plenty for a meter
+          last = t;
+          an.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; }
+          setLevel(Math.min(1, Math.sqrt(sum / data.length) * 3.2));
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    } catch (e) { console.warn('[Level] analyser failed:', e); }
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      try { src && src.disconnect(); } catch (_) {}
+      try { ctx && ctx.state !== 'closed' && ctx.close(); } catch (_) {}
+    };
+  }, [stream]);
+  return level;
+}
+
+// Segmented meter driven by real audio (replaces the decorative AnimatedLevel)
+function LiveLevel({ stream, segments = 10 }) {
+  const level = useStreamLevel(stream);
+  const lit = Math.round(level * segments);
+  return (
+    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+      {Array.from({ length: segments }).map((_, i) => {
+        const on = i < lit;
+        const hot = i >= segments - 2;
+        return (
+          <div key={i} style={{
+            width: 3, height: 10, borderRadius: 1,
+            background: on ? (hot ? 'oklch(0.72 0.16 45)' : 'var(--sage)') : 'var(--bg-3)',
+            transition: 'background 0.08s',
+          }} />
+        );
+      })}
+    </div>
+  );
+}
+
 function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, roomId, isHost = true }) {
   const [phase, setPhase] = React.useState('greenRoom');
   const [scene, setScene] = React.useState('lateNight');
@@ -11,10 +69,10 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const [musicBed, setMusicBed] = React.useState(false);
   const [coachSeen, setCoachSeen] = React.useState(() => localStorage.getItem('podstudio-coach-seen') === '1');
   const [showCoach, setShowCoach] = React.useState(false);
-  const [level, setLevel] = React.useState(0.5);
   const [micError, setMicError] = React.useState(null);
   const [localStream, setLocalStream] = React.useState(null);
   const [pendingPhase, setPendingPhase] = React.useState(null);
+  const [finishedTracks, setFinishedTracks] = React.useState([]);
   const [userName, setUserName] = React.useState(() => localStorage.getItem('podstudio-name') || '');
   const [episodeTitle, setEpisodeTitle] = React.useState(() => localStorage.getItem('podstudio-episode-title') || '');
 
@@ -89,7 +147,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const liveGuests = React.useMemo(() => {
     if (!isRoomSession) {
       return [
-        { key: 'self', name: myName === 'Host' ? 'You' : myName, role: 'Solo', tint: 'terracotta', status: 'ready', you: true },
+        { key: 'self', name: myName === 'Host' ? 'You' : myName, role: 'Solo', tint: 'terracotta', status: 'ready', you: true, stream: localStream },
       ];
     }
     const peerEntries = Object.entries(peers).map(([id, p]) => {
@@ -106,7 +164,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     });
     if (isHost) {
       return [
-        { key: 'self-host', name: myName, role: 'Host', tint: 'terracotta', status: 'ready', you: true },
+        { key: 'self-host', name: myName, role: 'Host', tint: 'terracotta', status: 'ready', you: true, stream: localStream },
         ...peerEntries,
       ];
     }
@@ -114,10 +172,10 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     const otherGuests = peerEntries.filter(p => p.role !== 'Host');
     return [
       hostPeer,
-      { key: 'self-guest', name: myName, role: 'Guest', tint: 'olive', status: 'ready', you: true },
+      { key: 'self-guest', name: myName, role: 'Guest', tint: 'olive', status: 'ready', you: true, stream: localStream },
       ...otherGuests,
     ];
-  }, [isRoomSession, peers, isHost, myName]);
+  }, [isRoomSession, peers, isHost, myName, localStream]);
 
   // Request mic on sound-check entry
   React.useEffect(() => {
@@ -226,16 +284,15 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const finishSession = (hostTrack, guestTracks) => {
     const allTracks = [hostTrack, ...guestTracks].filter(Boolean);
     if (allTracks.length > 0) onRecordingComplete?.(allTracks);
+    setFinishedTracks(allTracks);
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     goToPhase('wrap');
   };
 
-  // Simulated mic level for glow (falls back when no real stream)
-  React.useEffect(() => {
-    if (!micOn || paused) { setLevel(0.05); return; }
-    const id = setInterval(() => setLevel(0.3 + Math.random() * 0.55), 140);
-    return () => clearInterval(id);
-  }, [micOn, paused]);
+  // Real mic level drives the sculpture glow and the Signal meter
+  const myLevel = useStreamLevel(micOn && !paused ? localStream : null);
+  const level = Math.max(myLevel, 0.04);
+  const inputDb = myLevel > 0.001 ? Math.max(-60, Math.round(20 * Math.log10(myLevel))) : null;
 
   // Elapsed timer
   React.useEffect(() => {
@@ -294,7 +351,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   }
 
   if (phase === 'wrap') {
-    return <WrapScreen elapsed={elapsed} />;
+    return <WrapScreen elapsed={elapsed} tracks={finishedTracks} episodeTitle={episodeTitle} isHost={isHost} />;
   }
 
   // Collapse side rails on narrower viewports so the stage stays usable
@@ -552,13 +609,12 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 11.5, color: 'var(--fg-2)' }}>Input level</span>
-                <span className="mono" style={{ fontSize: 10, color: 'var(--brass)' }}>−14 dB</span>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--brass)' }}>{inputDb !== null ? `${inputDb} dB` : '—'}</span>
               </div>
-              <AnimatedLevel active={micOn && (phase === 'record' ? !paused : true)} segments={22} />
+              <LiveLevel stream={micOn && !paused ? localStream : null} segments={22} />
             </div>
-            <QualStat label="Audio quality" v="Studio" />
-            <QualStat label="Connection" v="Stable" />
-            {isGuests && <QualStat label="Guest sync" v="On time" />}
+            <QualStat label="Recording" v={phase === 'record' ? (paused ? 'Paused' : 'Live') : 'Standby'} />
+            {isRoomSession && <QualStat label="Room" v={connectionStatus === 'connected' ? 'Connected' : connectionStatus} />}
           </div>
 
           {isGuests && (
@@ -640,7 +696,7 @@ function GuestSeat({ g, recording, narrow }) {
       }}>
         <span style={{ fontSize: 11, color: 'oklch(0.95 0 0)', fontWeight: 500 }}>{g.name.split(' ')[0]}</span>
         <div style={{ flex: 1 }}>
-          {g.status === 'joined' && <AnimatedLevel active={recording} segments={10} />}
+          {g.status === 'joined' && <LiveLevel stream={g.stream} segments={10} />}
         </div>
       </div>
     </div>
@@ -657,7 +713,7 @@ function GuestRow({ g }) {
           {g.status === 'joined' ? 'Live' : g.status === 'invited' ? 'Waiting' : 'Ready'} · {g.role}
         </div>
       </div>
-      <div style={{ width: 44 }}><AnimatedLevel active={g.status === 'joined'} segments={10} /></div>
+      <div style={{ width: 44 }}><LiveLevel stream={g.stream} segments={10} /></div>
     </div>
   );
 }
@@ -968,7 +1024,7 @@ function StudioRoomCard({ guests, roomId, isHost, connectionStatus, openInvite }
                 </div>
               </div>
               <div style={{ width: 54, display: 'flex', justifyContent: 'flex-end' }}>
-                <AnimatedLevel active={live && !waiting} segments={10} />
+                <LiveLevel stream={g.stream} segments={10} />
               </div>
             </div>
           );
@@ -993,47 +1049,93 @@ function StudioRoomCard({ guests, roomId, isHost, connectionStatus, openInvite }
 // ─────────────────────────────────────────────────────────────
 // Wrap screen — "That's a wrap"
 // ─────────────────────────────────────────────────────────────
-function WrapScreen({ elapsed }) {
-  const duration = Math.max(elapsed, 2738);
+function WrapScreen({ elapsed, tracks = [], episodeTitle, isHost }) {
+  const [shared, setShared] = React.useState(false);
+  const safeTitle = (episodeTitle || 'episode').replace(/[^\w一-鿿-]+/g, '-').slice(0, 40);
+  const ext = (blob) => (blob?.type || '').includes('ogg') ? 'ogg' : 'webm';
+  const fileName = (t) => `${safeTitle}-${(t.name || 'track').replace(/[^\w一-鿿-]+/g, '-')}.${ext(t.blob)}`;
+
+  const download = (t) => {
+    const a = document.createElement('a');
+    a.href = t.url;
+    a.download = fileName(t);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  const downloadAll = () => tracks.forEach((t, i) => setTimeout(() => download(t), i * 400));
+
+  const files = tracks.filter(t => t.blob).map(t => new File([t.blob], fileName(t), { type: t.blob.type || 'audio/webm' }));
+  const canShare = typeof navigator.canShare === 'function' && files.length > 0 && navigator.canShare({ files });
+  const shareTracks = async () => {
+    try {
+      await navigator.share({ files, title: episodeTitle || 'Podstudio session' });
+      setShared(true);
+    } catch (_) {} // user cancelled
+  };
+  const emailHref = `mailto:?subject=${encodeURIComponent((episodeTitle || 'Podcast session') + ' — audio tracks')}&body=${encodeURIComponent('Hi!\n\nMy recorded track from "' + (episodeTitle || 'our session') + '" is attached.\n\n(Recorded with Podstudio — the files were just downloaded to my device; attaching them to this email.)')}`;
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
       <Scene scene="lateNight" />
-      <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48 }}>
-        <div className="fade-in" style={{ maxWidth: 720, width: '100%', textAlign: 'center' }}>
+      <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflow: 'auto' }}>
+        <div className="fade-in" style={{ maxWidth: 640, width: '100%', textAlign: 'center' }}>
           <div className="caps" style={{ color: 'var(--brass)', marginBottom: 14 }}>Session complete</div>
-          <h1 className="display" style={{ fontSize: 88, lineHeight: 1, margin: 0, color: 'var(--fg-0)' }}>
+          <h1 className="display" style={{ fontSize: 64, lineHeight: 1, margin: 0, color: 'var(--fg-0)' }}>
             That's a <em style={{ color: 'var(--brass-bright)' }}>wrap</em>.
           </h1>
-          <p style={{ fontSize: 16, color: 'var(--fg-1)', marginTop: 20, lineHeight: 1.6 }}>
-            Beautiful session. We've safely stored every track locally — ready to polish.
+          <p style={{ fontSize: 15, color: 'var(--fg-1)', marginTop: 16, lineHeight: 1.6 }}>
+            {tracks.length > 0
+              ? (isHost
+                  ? `${fmtTime(elapsed)} recorded · ${tracks.length} track${tracks.length > 1 ? 's' : ''} saved locally in this browser. Download them now — they're gone if you close the tab.`
+                  : `${fmtTime(elapsed)} recorded. Download your track and send it to your host — your local copy is the highest-quality version.`)
+              : 'No audio was captured this session.'}
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 40, marginBottom: 36 }}>
-            {[
-              { l: 'Duration', v: fmtTime(duration), sub: 'recorded' },
-              { l: 'Tracks', v: '3', sub: 'multi-speaker' },
-              { l: 'Quality', v: '48 kHz', sub: 'studio master' },
-            ].map((s, i) => (
-              <div key={i} className="card" style={{ padding: 18, background: 'oklch(0.18 0.02 165 / 0.8)', backdropFilter: 'blur(10px)' }}>
-                <div className="caps" style={{ marginBottom: 6 }}>{s.l}</div>
-                <div className="display" style={{ fontSize: 32, color: 'var(--brass-bright)', lineHeight: 1 }}>{s.v}</div>
-                <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 4 }}>{s.sub}</div>
+          {tracks.length > 0 && (
+            <div className="card" style={{ padding: 16, marginTop: 28, marginBottom: 20, background: 'oklch(0.18 0.02 165 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
+              <div className="caps" style={{ marginBottom: 12 }}>Recorded tracks</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {tracks.map((t, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--line-0)', borderRadius: 8 }}>
+                    <Avatar name={t.name || 'Track'} tint={t.tint || 'terracotta'} size={30} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name || `Track ${i + 1}`}</div>
+                      <div className="mono" style={{ fontSize: 10.5, color: 'var(--fg-3)', marginTop: 2 }}>{fileName(t)} · {(t.blob?.size / 1024 / 1024).toFixed(1)} MB</div>
+                    </div>
+                    <audio src={t.url} controls style={{ height: 30, maxWidth: 170 }} />
+                    <button className="btn" style={{ fontSize: 11, padding: '6px 10px', flexShrink: 0 }} onClick={() => download(t)}>
+                      <I.Download size={11} /> Save
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="card" style={{ padding: 20, marginBottom: 32, background: 'oklch(0.18 0.02 165 / 0.8)', backdropFilter: 'blur(10px)' }}>
-            <div className="caps" style={{ marginBottom: 10, textAlign: 'left' }}>Episode waveform</div>
-            <LiveWaveform height={72} color="terracotta" barCount={140} active={false} />
-          </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                <button className="btn btn-primary" onClick={downloadAll}>
+                  <I.Download size={12} /> Download all
+                </button>
+                {canShare && (
+                  <button className="btn" onClick={shareTracks}>
+                    <I.Share size={12} /> {shared ? 'Shared!' : 'Share files…'}
+                  </button>
+                )}
+                <a className="btn" href={emailHref} onClick={downloadAll} style={{ textDecoration: 'none' }}>
+                  <I.FileText size={12} /> Email (downloads first)
+                </a>
+              </div>
+            </div>
+          )}
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: tracks.length === 0 ? 28 : 0 }}>
             <button className="btn btn-lg" onClick={() => window.__setPage('home')}>
               <I.Home size={13} /> Back home
             </button>
-            <button className="btn btn-primary btn-lg" onClick={() => window.__setPage('edit')}>
-              Go to editor <I.ChevronRight size={14} />
-            </button>
+            {tracks.length > 0 && (
+              <button className="btn btn-primary btn-lg" onClick={() => window.__setPage('edit')}>
+                Open in editor <I.ChevronRight size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
