@@ -98,14 +98,60 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
   React.useEffect(() => {
     if (!roomId) return;
     let destroyed = false;
+    let retryTimer = null;
 
     const suffix = Math.random().toString(36).slice(2, 7);
     const myId = isHost ? `ps-${roomId}-host` : `ps-${roomId}-g${suffix}`;
+    const hostId = `ps-${roomId}-host`;
 
     setConnectionStatus('connecting');
     setChatMessages([]);
     setPeers({});
     callsMadeRef.current = new Set();
+
+    // Guest → host connection with retry: the host may not have opened the
+    // room yet (or the broker may lag), so keep trying until the channel opens.
+    const scheduleRetry = (peer) => {
+      if (destroyed || retryTimer) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (!destroyed && peer && !peer.destroyed && !peer.disconnected) connectToHost(peer);
+      }, 3000);
+    };
+
+    const connectToHost = (peer) => {
+      if (destroyed) return;
+      const existing = dataConnsRef.current[hostId];
+      if (existing && existing.open) return;
+      const dc = peer.connect(hostId, { reliable: true, metadata: { name: userName } });
+      if (!dc) { scheduleRetry(peer); return; }
+      dataConnsRef.current[hostId] = dc;
+      dc.on('open', () => {
+        if (destroyed) return;
+        setConnectionStatus('connected');
+        dc.send({ type: 'hello', name: userName });
+        setPeers(p => ({ ...p, [hostId]: { ...(p[hostId] || {}), name: 'Host', tint: 'terracotta', status: 'joined' } }));
+        if (localStreamRef.current) tryCall(peer, hostId, localStreamRef.current);
+      });
+      dc.on('data', msg => handleMsg(msg, hostId));
+      dc.on('close', () => {
+        if (destroyed) return;
+        delete dataConnsRef.current[hostId];
+        callsMadeRef.current.delete(hostId);
+        setConnectionStatus('reconnecting');
+        setPeers(p => p[hostId] ? { ...p, [hostId]: { ...p[hostId], status: 'disconnected' } } : p);
+        scheduleRetry(peer);
+      });
+      dc.on('error', e => console.warn('[Room] dc error:', e));
+      // Safety net: if the attempt neither opens nor errors, drop it and retry
+      setTimeout(() => {
+        if (!destroyed && dataConnsRef.current[hostId] === dc && !dc.open) {
+          try { dc.close(); } catch (_) {}
+          delete dataConnsRef.current[hostId];
+          scheduleRetry(peer);
+        }
+      }, 8000);
+    };
 
     const initPeer = () => {
       if (destroyed) return;
@@ -119,22 +165,13 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
         peer.on('open', () => {
           if (destroyed) return;
           peerReadyRef.current = true;
-          setConnectionStatus('connected');
           console.log('[Room] peer open:', myId);
-
-          if (!isHost) {
-            const hostId = `ps-${roomId}-host`;
-            const dc = peer.connect(hostId, { reliable: true, metadata: { name: userName } });
-            dataConnsRef.current[hostId] = dc;
-            dc.on('open', () => {
-              if (destroyed) return;
-              dc.send({ type: 'hello', name: userName });
-              setPeers(p => ({ ...p, [hostId]: { ...(p[hostId] || {}), name: 'Host', tint: 'terracotta', status: 'joined' } }));
-              if (localStreamRef.current) tryCall(peer, hostId, localStreamRef.current);
-            });
-            dc.on('data', msg => handleMsg(msg, hostId));
-            dc.on('close', () => { if (!destroyed) setConnectionStatus('reconnecting'); });
-            dc.on('error', e => console.warn('[Room] dc error:', e));
+          if (isHost) {
+            // Host room is live once registered with the broker
+            setConnectionStatus('connected');
+          } else {
+            // Guest is only "connected" once the data channel to the host opens
+            connectToHost(peer);
           }
         });
 
@@ -179,7 +216,26 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
         });
 
         peer.on('error', err => {
-          if (!destroyed) { console.error('[Room] error:', err.type); setConnectionStatus('error'); }
+          if (destroyed) return;
+          if (err.type === 'peer-unavailable') {
+            // Target peer not registered (yet) — for guests this means the host
+            // hasn't opened the room; keep waiting and retrying.
+            if (!isHost) {
+              delete dataConnsRef.current[hostId];
+              setConnectionStatus('connecting');
+              scheduleRetry(peer);
+            }
+            return;
+          }
+          if (err.type === 'unavailable-id') {
+            // Stale registration from a reload — recreate once the broker releases it
+            try { peer.destroy(); } catch (_) {}
+            setConnectionStatus('connecting');
+            retryTimer = setTimeout(() => { retryTimer = null; initPeer(); }, 2500);
+            return;
+          }
+          console.error('[Room] error:', err.type);
+          setConnectionStatus('error');
         });
         peer.on('disconnected', () => {
           if (!destroyed) {
@@ -206,6 +262,7 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
     return () => {
       destroyed = true;
       peerReadyRef.current = false;
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
       if (peerRef.current) { try { peerRef.current.destroy(); } catch (_) {} peerRef.current = null; }
       dataConnsRef.current = {};
     };

@@ -35,14 +35,25 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     localStream,
     userName: myName,
     onPhaseChange: (remotePhase) => {
-      if (!isHost) {
-        // Defer mic-gated phases so mobile browsers get a user gesture
-        if (remotePhase === 'check' || remotePhase === 'record') {
-          setPendingPhase(remotePhase);
-        } else {
-          goToPhase(remotePhase);
-        }
+      if (isHost) return;
+      if (remotePhase === 'wrap') {
+        // Host ended the session — finish our own recording if one is running
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') stopRecording();
+        else goToPhase('wrap');
+        return;
       }
+      // Mic-gated phases need a user gesture (mobile Safari) — defer until
+      // the guest taps "Join now" if they haven't granted the mic yet
+      if ((remotePhase === 'check' || remotePhase === 'countdown' || remotePhase === 'record') && !streamRef.current) {
+        setPendingPhase(remotePhase);
+        return;
+      }
+      if (remotePhase === 'record') {
+        // Mic already granted — start recording locally in sync with the host
+        if (phase !== 'record') { goToPhase('record'); setElapsed(0); startRecording(); }
+        return;
+      }
+      goToPhase(remotePhase);
     },
   });
 
@@ -173,6 +184,26 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     mr.stop();
   };
 
+  // Pick up guest streams that connect after recording has already started
+  React.useEffect(() => {
+    if (phase !== 'record') return;
+    const mr = mediaRecorderRef.current;
+    if (!mr || mr.state === 'inactive') return;
+    Object.entries(peers).forEach(([id, p]) => {
+      if (p.stream && !trackRecordersRef.current[id]) {
+        const rec = createTrackRecorder(p.stream);
+        rec.start();
+        trackRecordersRef.current[id] = { rec, name: p.name || 'Guest', tint: p.tint || 'olive' };
+        console.log('[Podstudio] late-joining track added:', id);
+      }
+    });
+  }, [peers, phase]);
+
+  // A stale "join now" prompt only makes sense in the green room
+  React.useEffect(() => {
+    if (phase !== 'greenRoom' && pendingPhase) setPendingPhase(null);
+  }, [phase]);
+
   const finishSession = (hostTrack, guestTracks) => {
     const allTracks = [hostTrack, ...guestTracks].filter(Boolean);
     if (allTracks.length > 0) onRecordingComplete?.(allTracks);
@@ -228,7 +259,12 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
         roomId={roomId}
         isHost={isHost}
         pendingPhase={pendingPhase}
-        onAcceptPhase={() => { goToPhase(pendingPhase); setPendingPhase(null); }}
+        onAcceptPhase={() => {
+          // No mic yet — always route through sound check so getUserMedia
+          // runs inside this tap's user-gesture context
+          goToPhase(streamRef.current ? pendingPhase : 'check');
+          setPendingPhase(null);
+        }}
       />
     );
   }
@@ -669,7 +705,7 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
             }}>
               <I.Mic size={14} style={{ color: 'var(--terracotta)', flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: 'var(--fg-1)', flex: 1 }}>
-                Host started sound check — tap to join
+                {pendingPhase === 'check' ? 'Host started sound check — tap to join' : 'Host is recording — tap to join in'}
               </span>
               <button className="btn btn-primary" onClick={onAcceptPhase}>
                 Join now
