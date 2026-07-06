@@ -271,6 +271,13 @@ Root component and global state:
 - **Mic-gated phase sync** (`studio.jsx`): guests defer `check`/`countdown`/`record` broadcasts behind the "tap to join" banner whenever they have no mic stream; accepting always routes through Sound Check so `getUserMedia` runs inside the tap's gesture. `wrap` from the host stops the guest's local recorder so they keep their own track.
 - **Deployment**: repo made public, GitHub Pages enabled (branch `main`, root). `index.html` redirects to `Podstudio.html` preserving `?room=` params. HTTPS means mic works on every device — invite links work across networks, no shared WiFi needed.
 
+### De-mocking pass — real product behavior (April 2026)
+- **Name gate** (`studio.jsx` GreenRoom): room sessions now require a display name before the room goes live (`useRoom` gets `roomId: null` until named). Names persist in `localStorage('podstudio-name')` and flow into chat, peer lists, and recorded track names.
+- **Real episode title** (`studio.jsx` + `room.jsx`): host edits the title inline in the Green Room (styled as the display heading); it broadcasts to guests via a new `meta` data-channel message (`sendMeta`/`onMetaChange`) and re-sends when peers join. Shown in the studio top bar instead of the hardcoded "Ep. 47".
+- **Fake content removed from the room flow**: demo guests (Maya Chen etc.), seeded chat messages, "Recording begins at 10:45 AM PT", and fake Planned/Quality stats are gone. The InviteModal's fake email invite and inaccurate details replaced with honest ones.
+- **Mobile/guest layout**: sidebar hidden for guests and below 920px; Green Room collapses to a single column with smaller type on narrow screens.
+- **Verified in-browser** (preview + simulated host peer): guest name gate → green room join → real names on both sides → title sync → phase-sync banner all confirmed working against the live PeerJS broker.
+
 ### Current validation status
 - Solo recording flow is implemented in-browser.
 - WebRTC guest connection is implemented but still needs real-world host/guest testing across two browser sessions/devices.

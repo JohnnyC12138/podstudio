@@ -17,6 +17,15 @@ function App() {
   const [roomId] = React.useState(() => urlRoomId || Math.random().toString(36).slice(2, 8).toUpperCase());
   const [isHost] = React.useState(() => !urlRoomId);
 
+  // Guests get a focused, chrome-free view; narrow screens drop the sidebar
+  const [vw, setVw] = React.useState(() => window.innerWidth);
+  React.useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const showSidebar = isHost && vw >= 920;
+
   React.useEffect(() => { localStorage.setItem('podstudio-page', page); }, [page]);
   React.useEffect(() => { localStorage.setItem('podstudio-mode', studioMode); }, [studioMode]);
 
@@ -84,7 +93,7 @@ function App() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }} data-screen-label={`Podstudio · ${page}`}>
-      <Sidebar page={page} setPage={setPage} />
+      {showSidebar && <Sidebar page={page} setPage={setPage} />}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
         {page === 'home' && <LandingPage setPage={setPage} openInvite={openInvite} />}
         {page === 'onboarding' && <OnboardingPage setPage={setPage} setStudioMode={setStudioMode} />}

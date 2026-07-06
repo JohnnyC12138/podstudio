@@ -50,7 +50,7 @@ function peerTint(peerId) {
   return tints[h % tints.length];
 }
 
-function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
+function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaChange }) {
   const peerRef = React.useRef(null);
   const peerReadyRef = React.useRef(false);
   const dataConnsRef = React.useRef({});
@@ -60,8 +60,10 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
   const [connectionStatus, setConnectionStatus] = React.useState('idle');
   const [chatMessages, setChatMessages] = React.useState([]);
   const onPhaseChangeRef = React.useRef(onPhaseChange);
+  const onMetaChangeRef = React.useRef(onMetaChange);
 
   React.useEffect(() => { onPhaseChangeRef.current = onPhaseChange; }, [onPhaseChange]);
+  React.useEffect(() => { onMetaChangeRef.current = onMetaChange; }, [onMetaChange]);
   React.useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
 
   const handleMsg = React.useCallback((msg, fromId) => {
@@ -75,6 +77,8 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
       }]);
     } else if (msg.type === 'phase') {
       onPhaseChangeRef.current?.(msg.phase);
+    } else if (msg.type === 'meta') {
+      onMetaChangeRef.current?.(msg.meta);
     } else if (msg.type === 'hello') {
       setPeers(p => ({
         ...p,
@@ -297,7 +301,11 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange }) {
     broadcast({ type: 'phase', phase });
   }, [broadcast]);
 
-  return { peers, connectionStatus, chatMessages, sendChat, sendPhase };
+  const sendMeta = React.useCallback((meta) => {
+    broadcast({ type: 'meta', meta });
+  }, [broadcast]);
+
+  return { peers, connectionStatus, chatMessages, sendChat, sendPhase, sendMeta };
 }
 
 window.generateRoomId = generateRoomId;

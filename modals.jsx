@@ -48,32 +48,15 @@ function InviteModal({ onClose, roomId }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
             {[
               { label: 'Role', v: 'Guest · can speak' },
-              { label: 'Expires', v: '24 hours after start' },
-              { label: 'Video', v: 'Optional · 1080p' },
-              { label: 'Recording', v: 'Local · 48 kHz' },
+              { label: 'Works on', v: 'Any device · no install' },
+              { label: 'Recording', v: 'Local · in their browser' },
+              { label: 'Valid while', v: 'You keep the studio open' },
             ].map((x, i) => (
               <div key={i} style={{ padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--line-0)', borderRadius: 6 }}>
                 <div className="caps" style={{ color: 'var(--fg-3)', marginBottom: 3 }}>{x.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--fg-0)' }}>{x.v}</div>
               </div>
             ))}
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <div className="caps" style={{ color: 'var(--fg-3)', marginBottom: 8 }}>Or invite directly</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input placeholder="maya@chen.studio" style={{
-                flex: 1,
-                background: 'var(--bg-0)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 12,
-                color: 'var(--fg-0)',
-                outline: 'none',
-              }} />
-              <button className="btn btn-primary" style={{ padding: '8px 14px', fontSize: 12 }}>Send email</button>
-            </div>
           </div>
 
           <div style={{
@@ -86,7 +69,7 @@ function InviteModal({ onClose, roomId }) {
           }}>
             <I.Sparkle size={12} style={{ color: 'var(--amber)', marginTop: 2, flexShrink: 0 }} />
             <div style={{ fontSize: 11.5, color: 'var(--fg-1)', lineHeight: 1.5 }}>
-              <span style={{ color: 'var(--amber)', fontWeight: 600 }}>Pro tip:</span> Share a <span className="mono">mic-test link</span> 24h ahead so we can level-match before the call.
+              <span style={{ color: 'var(--amber)', fontWeight: 600 }}>Heads up:</span> stay in the Green Room while your guest joins — the room lives in this browser tab.
             </div>
           </div>
 

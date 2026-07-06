@@ -15,8 +15,21 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const [micError, setMicError] = React.useState(null);
   const [localStream, setLocalStream] = React.useState(null);
   const [pendingPhase, setPendingPhase] = React.useState(null);
+  const [userName, setUserName] = React.useState(() => localStorage.getItem('podstudio-name') || '');
+  const [episodeTitle, setEpisodeTitle] = React.useState(() => localStorage.getItem('podstudio-episode-title') || '');
 
-  const myName = isHost ? 'Host' : 'Guest';
+  const myName = userName || (isHost ? 'Host' : 'Guest');
+  const saveName = (name) => {
+    const clean = name.trim().slice(0, 40);
+    if (!clean) return;
+    localStorage.setItem('podstudio-name', clean);
+    setUserName(clean);
+  };
+  const saveTitle = (title) => {
+    const clean = title.slice(0, 80);
+    setEpisodeTitle(clean);
+    localStorage.setItem('podstudio-episode-title', clean);
+  };
 
   // Real audio recording refs
   const mediaRecorderRef = React.useRef(null);
@@ -28,12 +41,17 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const elapsedRef = React.useRef(0);
   React.useEffect(() => { elapsedRef.current = elapsed; }, [elapsed]);
 
-  // WebRTC room — must be declared before isRoomSession so peers is available
-  const { peers, connectionStatus, chatMessages, sendChat, sendPhase } = useRoom({
-    roomId,
+  // WebRTC room — must be declared before isRoomSession so peers is available.
+  // The room only goes live once the user has entered their name, so peers
+  // always see real names (guests retry until the host's room appears).
+  const { peers, connectionStatus, chatMessages, sendChat, sendPhase, sendMeta } = useRoom({
+    roomId: userName ? roomId : null,
     isHost,
     localStream,
     userName: myName,
+    onMetaChange: (meta) => {
+      if (!isHost && meta && typeof meta.title === 'string') setEpisodeTitle(meta.title);
+    },
     onPhaseChange: (remotePhase) => {
       if (isHost) return;
       if (remotePhase === 'wrap') {
@@ -62,15 +80,16 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const isRoomSession = studioMode === 'guests' || !isHost || hasRealPeers;
   const isGuests = studioMode === 'guests' || isRoomSession;
 
-  // Build live guest list: real peers when in a room session, demo data otherwise
+  // Host broadcasts episode meta to everyone (re-sent when a new peer joins)
+  React.useEffect(() => {
+    if (isHost && isRoomSession) sendMeta({ title: episodeTitle });
+  }, [episodeTitle, peers, isHost, isRoomSession, sendMeta]);
+
+  // Build live guest list from real peers (plus yourself)
   const liveGuests = React.useMemo(() => {
     if (!isRoomSession) {
-      return isGuests ? [
-        { key: 'host', name: 'Noa Weiss', role: 'Host', tint: 'terracotta', status: 'ready', you: true },
-        { key: 'g1', name: 'Maya Chen', role: 'LA', tint: 'olive', status: 'joined' },
-        { key: 'g2', name: 'Dominic Hale', role: 'London', tint: 'amber', status: 'invited' },
-      ] : [
-        { key: 'host', name: 'Noa Weiss', role: 'Solo', tint: 'terracotta', status: 'ready', you: true },
+      return [
+        { key: 'self', name: myName === 'Host' ? 'You' : myName, role: 'Solo', tint: 'terracotta', status: 'ready', you: true },
       ];
     }
     const peerEntries = Object.entries(peers).map(([id, p]) => {
@@ -87,7 +106,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     });
     if (isHost) {
       return [
-        { key: 'self-host', name: 'You (Host)', role: 'Host', tint: 'terracotta', status: 'ready', you: true },
+        { key: 'self-host', name: myName, role: 'Host', tint: 'terracotta', status: 'ready', you: true },
         ...peerEntries,
       ];
     }
@@ -95,10 +114,10 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     const otherGuests = peerEntries.filter(p => p.role !== 'Host');
     return [
       hostPeer,
-      { key: 'self-guest', name: 'You (Guest)', role: 'Guest', tint: 'olive', status: 'ready', you: true },
+      { key: 'self-guest', name: myName, role: 'Guest', tint: 'olive', status: 'ready', you: true },
       ...otherGuests,
     ];
-  }, [isRoomSession, isGuests, peers, isHost]);
+  }, [isRoomSession, peers, isHost, myName]);
 
   // Request mic on sound-check entry
   React.useEffect(() => {
@@ -175,7 +194,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
 
     mr.addEventListener('stop', () => {
       const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
-      const hostTrack = blob.size > 0 ? { blob, url: URL.createObjectURL(blob), name: 'Host', duration: elapsedRef.current } : null;
+      const hostTrack = blob.size > 0 ? { blob, url: URL.createObjectURL(blob), name: myName, duration: elapsedRef.current } : null;
       Promise.all(guestStopPromises).then(guestTracks => {
         finishSession(hostTrack, guestTracks.filter(Boolean));
       });
@@ -265,6 +284,11 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
           goToPhase(streamRef.current ? pendingPhase : 'check');
           setPendingPhase(null);
         }}
+        userName={userName}
+        onSaveName={saveName}
+        episodeTitle={episodeTitle}
+        onSaveTitle={saveTitle}
+        isRoomSession={isRoomSession}
       />
     );
   }
@@ -288,7 +312,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
         zIndex: 20,
       }}>
         <div style={{ minWidth: 0, lineHeight: 1.3 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Ep. 47 · <span className="serif-it" style={{ color: 'var(--fg-1)' }}>The Attention Economy</span></div>
+          <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span className="serif-it" style={{ color: 'var(--fg-1)' }}>{episodeTitle || 'Untitled episode'}</span></div>
           <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {isGuests ? `${liveGuests.filter(g => g.status === 'joined').length} in studio · recording locally` : 'Solo session · auto-saving'}
             {isRoomSession && connectionStatus !== 'connected' && <span style={{ color: 'oklch(0.82 0.16 25)', marginLeft: 6 }}>· {connectionStatus}…</span>}
@@ -651,47 +675,107 @@ function QualStat({ label, v }) {
 // ─────────────────────────────────────────────────────────────
 // Green Room — waiting area for guests
 // ─────────────────────────────────────────────────────────────
-function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, connectionStatus, roomId, isHost, pendingPhase, onAcceptPhase }) {
+function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, connectionStatus, roomId, isHost, pendingPhase, onAcceptPhase, userName, onSaveName, episodeTitle, onSaveTitle, isRoomSession }) {
   const isLive = !!chatMessages;
-  const [localMessages, setLocalMessages] = React.useState([
-    { id: 1, from: 'Maya Chen', text: "Hi! Got coffee. Ready when you are.", tint: 'olive', time: '10:38' },
-    { id: 2, from: 'Noa Weiss (host)', text: "Almost ready — sound-checking now. Two minutes.", tint: 'terracotta', time: '10:39', you: true },
-  ]);
-  const messages = isLive ? chatMessages : localMessages;
+  const messages = chatMessages || [];
   const [draft, setDraft] = React.useState('');
+  const [nameDraft, setNameDraft] = React.useState('');
   const chatBottomRef = React.useRef(null);
   React.useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // Responsive: guests mostly join from phones
+  const [vw, setVw] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  React.useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const narrow = vw < 920;
+
   const send = () => {
-    if (!draft.trim()) return;
-    if (isLive) {
-      onSendChat(draft.trim());
-    } else {
-      setLocalMessages(m => [...m, { id: Date.now(), from: 'Noa Weiss (host)', text: draft, tint: 'terracotta', time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), you: true }]);
-    }
+    if (!draft.trim() || !isLive) return;
+    onSendChat(draft.trim());
     setDraft('');
   };
+
+  // ── Name gate: the room only goes live once we know who you are ──
+  if (isRoomSession && !userName) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
+        <Scene scene="lateNight" />
+        <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div className="card" style={{ width: 400, maxWidth: '94vw', padding: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--brass)' }} />
+              <span className="caps" style={{ color: 'var(--brass)' }}>{isHost ? 'Your studio' : 'Joining room'} · {roomId}</span>
+            </div>
+            <h2 className="display" style={{ fontSize: 30, margin: '10px 0 6px', color: 'var(--fg-0)' }}>
+              {isHost ? 'Open your studio' : "You're invited to record"}
+            </h2>
+            <p style={{ fontSize: 13.5, color: 'var(--fg-2)', lineHeight: 1.6, margin: '0 0 20px' }}>
+              {isHost
+                ? 'Your name is shown to guests in the green room and on your recorded track.'
+                : 'Enter your name so the host knows who joined. Your audio records right in this browser — nothing to install.'}
+            </p>
+            <input
+              autoFocus
+              placeholder="Your name"
+              value={nameDraft}
+              onChange={e => setNameDraft(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && nameDraft.trim() && onSaveName(nameDraft)}
+              className="input"
+              style={{ width: '100%', fontSize: 15, padding: '12px 14px', marginBottom: 12, boxSizing: 'border-box' }}
+            />
+            <button
+              className="btn btn-primary btn-lg"
+              style={{ width: '100%', justifyContent: 'center', opacity: nameDraft.trim() ? 1 : 0.5 }}
+              disabled={!nameDraft.trim()}
+              onClick={() => onSaveName(nameDraft)}
+            >
+              <I.Mic size={14} /> Enter green room
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
       <Scene scene="lateNight" />
-      <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 40, padding: '48px 48px', overflow: 'auto' }}>
+      <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'grid', gridTemplateColumns: narrow ? '1fr' : '1.4fr 1fr', gap: narrow ? 22 : 40, padding: narrow ? '26px 18px' : '48px 48px', overflow: 'auto' }}>
         {/* Left — episode info */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: narrow ? 'flex-start' : 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: narrow ? 14 : 24 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--brass)' }} />
-            <span className="caps" style={{ color: 'var(--brass)' }}>Green room · Ep. 47</span>
+            <span className="caps" style={{ color: 'var(--brass)' }}>Green room</span>
             {isLive && connectionStatus && (
               <span style={{ fontSize: 10.5, color: connectionStatus === 'connected' ? 'var(--sage)' : 'oklch(0.82 0.16 25)', marginLeft: 4 }}>
                 · {connectionStatus === 'connected' ? 'connected' : connectionStatus + '…'}
               </span>
             )}
           </div>
-          <h1 className="display" style={{ fontSize: 64, lineHeight: 1, margin: 0, color: 'var(--fg-0)' }}>
-            The <em style={{ color: 'var(--brass-bright)' }}>Attention</em><br/>Economy
-          </h1>
-          <p style={{ fontSize: 16, color: 'var(--fg-1)', marginTop: 22, maxWidth: 460, lineHeight: 1.6 }}>
-            Recording begins at <span className="mono" style={{ color: 'var(--brass-bright)' }}>10:45 AM PT</span>. Grab water,
-            settle in — we'll do a 30-second sound check first.
+          {isHost ? (
+            <input
+              value={episodeTitle}
+              onChange={e => onSaveTitle(e.target.value)}
+              placeholder="Name your episode…"
+              className="display"
+              style={{
+                fontSize: narrow ? 34 : 54, lineHeight: 1.1, margin: 0, color: 'var(--fg-0)',
+                background: 'transparent', border: 'none', borderBottom: '1px dashed oklch(0.78 0.1 82 / 0.3)',
+                outline: 'none', padding: '0 0 6px', width: '100%', maxWidth: 560,
+              }}
+            />
+          ) : (
+            <h1 className="display" style={{ fontSize: narrow ? 34 : 54, lineHeight: 1.1, margin: 0, color: 'var(--fg-0)' }}>
+              {episodeTitle || <span style={{ color: 'var(--fg-3)' }}>Untitled episode</span>}
+            </h1>
+          )}
+          <p style={{ fontSize: narrow ? 14 : 16, color: 'var(--fg-1)', marginTop: narrow ? 14 : 22, maxWidth: 460, lineHeight: 1.6 }}>
+            {isHost
+              ? 'Share the invite link below. When everyone\'s in, start the sound check — recording begins after a quick 3-2-1.'
+              : 'Settle in — the host will start a quick sound check, and you\'ll get a tap-to-join prompt right here.'}
           </p>
 
           {pendingPhase && (
@@ -752,30 +836,27 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
             </div>
           )}
 
-          <div style={{ marginTop: 44, display: 'flex', gap: 28 }}>
+          <div style={{ marginTop: narrow ? 26 : 44, display: 'flex', gap: 28, alignItems: 'flex-end' }}>
             <div>
-              <div className="caps" style={{ marginBottom: 6 }}>Guests</div>
-              <div style={{ display: 'flex', gap: -6 }}>
+              <div className="caps" style={{ marginBottom: 6 }}>In the room</div>
+              <div style={{ display: 'flex' }}>
                 {guests.map((g, i) => (
-                  <div key={g.key} style={{ marginLeft: i > 0 ? -8 : 0, border: '2px solid var(--bg-0)', borderRadius: '50%' }}>
+                  <div key={g.key} style={{ marginLeft: i > 0 ? -8 : 0, border: '2px solid var(--bg-0)', borderRadius: '50%' }} title={g.name}>
                     <Avatar name={g.name} tint={g.tint} size={32} />
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              <div className="caps" style={{ marginBottom: 6 }}>Planned</div>
-              <div style={{ fontSize: 13, color: 'var(--fg-0)' }}>~45 min</div>
-            </div>
-            <div>
-              <div className="caps" style={{ marginBottom: 6 }}>Quality</div>
-              <div style={{ fontSize: 13, color: 'var(--brass-bright)' }}>Studio 48kHz</div>
+              <div className="caps" style={{ marginBottom: 6 }}>Recording</div>
+              <div style={{ fontSize: 13, color: 'var(--brass-bright)' }}>Local · in your browser</div>
             </div>
           </div>
         </div>
 
-        {/* Right — visible room surface + live chat */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'center', minWidth: 0 }}>
+        {/* Right — visible room surface + live chat (room sessions only) */}
+        {isLive && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignSelf: narrow ? 'stretch' : 'center', minWidth: 0, paddingBottom: narrow ? 20 : 0 }}>
           <StudioRoomCard
             guests={guests}
             roomId={roomId}
@@ -829,6 +910,7 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
           </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
