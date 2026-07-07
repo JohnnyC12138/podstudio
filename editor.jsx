@@ -110,7 +110,7 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
         effectiveTracks
           .map((t, i) => ({ blob: t.blob, gain: getSet(i).muted ? 0 : getSet(i).vol, offset: getSet(i).offset }))
           .filter(t => t.blob && t.gain > 0),
-        musicBed?.kind, 0.6, { tighten }
+        musicBed?.kind, 0.6, { ...post, intro: post.intro && !!musicBed }
       );
       if (blob) {
         const a = document.createElement('a');
@@ -141,7 +141,8 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
     ...effectiveTracks.map((t, i) => (t.duration || 0) + getSet(i).offset),
     1
   );
-  const [tighten, setTighten] = React.useState(false);
+  const [post, setPost] = React.useState({ tighten: false, polish: true, fade: true, intro: false });
+  const togglePost = (k) => setPost(p => ({ ...p, [k]: !p[k] }));
   const [speed, setSpeed] = React.useState(1);
   const setRate = (r) => { setSpeed(r); if (audioRef.current) audioRef.current.playbackRate = r; };
   const seekTo = (sec) => {
@@ -201,11 +202,25 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
           </button>
         )}
         {effectiveTracks.length > 0 && (
-          <label title="Automatically shortens pauses longer than half a second in the exported mix"
-            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: tighten ? 'var(--teal)' : 'var(--fg-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <input type="checkbox" checked={tighten} onChange={e => setTighten(e.target.checked)} />
-            <I.Sparkle size={11} /> AI tighten pauses
-          </label>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[
+              { k: 'tighten', l: 'Tighten pauses', tip: 'AI shortens silences over 0.5s' },
+              { k: 'polish', l: 'Polish voices', tip: 'Removes rumble, evens loudness' },
+              { k: 'fade', l: 'Fades', tip: 'Fade in and out' },
+              { k: 'intro', l: 'Music intro/outro', tip: 'Bed opens solo 3s and closes 4s (needs music)', needsBed: true },
+            ].map(o => (
+              <button key={o.k} title={o.tip} onClick={() => togglePost(o.k)}
+                disabled={o.needsBed && !musicBed}
+                style={{
+                  padding: '4px 8px', borderRadius: 999, fontSize: 10.5, whiteSpace: 'nowrap',
+                  background: post[o.k] && (!o.needsBed || musicBed) ? 'oklch(0.82 0.14 195 / 0.15)' : 'var(--bg-2)',
+                  border: `1px solid ${post[o.k] && (!o.needsBed || musicBed) ? 'oklch(0.82 0.14 195 / 0.45)' : 'var(--line-0)'}`,
+                  color: o.needsBed && !musicBed ? 'var(--fg-4)' : post[o.k] ? 'var(--teal)' : 'var(--fg-2)',
+                }}>
+                <I.Sparkle size={9} /> {o.l}
+              </button>
+            ))}
+          </div>
         )}
         {effectiveTracks.length > 0 && (
           <button className="btn btn-primary" onClick={exportMix} disabled={mixing}>

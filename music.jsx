@@ -5,6 +5,9 @@ const MUSIC_BEDS = [
   { kind: 'warm-glow',    name: 'Warm Glow',    desc: 'slow brass-warm pad · conversational', color: 'amber',  loopSec: 16 },
   { kind: 'night-drift',  name: 'Night Drift',  desc: 'low drone & air · late-night calm',    color: 'teal',   loopSec: 16 },
   { kind: 'paper-lights', name: 'Paper Lights', desc: 'soft plucked arpeggio · light energy',  color: 'green',  loopSec: 12 },
+  { kind: 'rain-glass',   name: 'Rain on Glass', desc: 'soft rainfall & distant tone · cozy',  color: 'teal',   loopSec: 14 },
+  { kind: 'sunrise',      name: 'Sunrise',      desc: 'bright add9 pad · optimistic openers',  color: 'amber',  loopSec: 16 },
+  { kind: 'heartbeat',    name: 'Heartbeat',    desc: 'low pulse & tape hiss · true-crime / focus', color: 'purple', loopSec: 12 },
 ];
 
 const _bedCache = {};
@@ -67,6 +70,44 @@ async function generateBed(kind) {
     const ng = ctx.createGain(); ng.gain.value = 0.05;
     nsrc.connect(bp); bp.connect(ng); ng.connect(master);
     nsrc.start(0);
+  } else if (kind === 'rain-glass') {
+    // Rainfall: bright filtered noise + sparse droplets + far tone
+    const nbuf = ctx.createBuffer(1, sr * 14, sr);
+    const nd = nbuf.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * 0.35;
+    const nsrc = ctx.createBufferSource(); nsrc.buffer = nbuf;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = 0.4;
+    const ng = ctx.createGain(); ng.gain.value = 0.10;
+    nsrc.connect(bp); bp.connect(ng); ng.connect(master); nsrc.start(0);
+    for (let i = 0; i < 22; i++) pluck(1200 + Math.random() * 1800, Math.random() * 13.5, 0.03);
+    note(220, 0, 14.5, { type: 'sine', gain: 0.07 });
+    note(146.83, 0, 14.5, { type: 'sine', gain: 0.05, detune: -3 });
+  } else if (kind === 'sunrise') {
+    // Cmaj add9 → Fmaj7 shimmer, brighter voicing
+    const chords = [
+      [261.63, 329.63, 392.0, 587.33],
+      [349.23, 440.0, 523.25, 659.25],
+      [293.66, 392.0, 493.88, 587.33],
+      [261.63, 329.63, 392.0, 523.25],
+    ];
+    chords.forEach((ch, i) => ch.forEach((f, j) => {
+      note(f, i * 4, 4.6, { type: j < 2 ? 'triangle' : 'sine', gain: j === 0 ? 0.13 : 0.07, detune: j * 4 });
+    }));
+    const scale = [523.25, 587.33, 659.25, 783.99];
+    [0, 2, 1, 3, 2, 0, 3, 1].forEach((s, i) => pluck(scale[s], i * 2 + 0.4, 0.05));
+  } else if (kind === 'heartbeat') {
+    // Slow low pulse + tape hiss — tension / focus bed
+    for (let t = 0; t < 12; t += 1.5) {
+      pluck(55, t, 0.5); pluck(55, t + 0.28, 0.3);
+    }
+    note(110, 0, 12.5, { type: 'sine', gain: 0.05 });
+    const nbuf = ctx.createBuffer(1, sr * 12, sr);
+    const nd = nbuf.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * 0.2;
+    const nsrc = ctx.createBufferSource(); nsrc.buffer = nbuf;
+    const lp = ctx.createBiquadFilter(); lp.type = 'highpass'; lp.frequency.value = 6000;
+    const ng = ctx.createGain(); ng.gain.value = 0.035;
+    nsrc.connect(lp); lp.connect(ng); ng.connect(master); nsrc.start(0);
   } else {
     // paper-lights: pentatonic plucked arpeggio over 12s
     const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
@@ -146,14 +187,17 @@ async function renderMixToWav(trackInputs, bedKind, bedGain = 0.6, opts = {}) {
   if (voices.length === 0) return null;
 
   const sr = 44100;
-  const lenSec = Math.max(...voices.map(v => v.buf.duration + v.offset));
+  // Music intro/outro: bed plays alone before the first word and after the last
+  const introSec = opts.intro && bedKind ? 3 : 0;
+  const outroSec = opts.intro && bedKind ? 4 : 0;
+  const lenSec = Math.max(...voices.map(v => v.buf.duration + v.offset)) + introSec + outroSec;
   let total = Math.ceil(lenSec * sr);
   let out = [new Float32Array(total), new Float32Array(total)];
 
-  // Sum voices with per-track gain and start offset
+  // Sum voices with per-track gain and start offset (shifted past the intro)
   for (const v of voices) {
     const ratio = v.buf.sampleRate / sr;
-    const off = Math.floor(v.offset * sr);
+    const off = Math.floor((v.offset + introSec) * sr);
     for (let ch = 0; ch < 2; ch++) {
       const src = v.buf.getChannelData(Math.min(ch, v.buf.numberOfChannels - 1));
       const n = Math.min(total - off, Math.floor(src.length / ratio));
@@ -161,12 +205,39 @@ async function renderMixToWav(trackInputs, bedKind, bedGain = 0.6, opts = {}) {
     }
   }
 
-  // AI tighten: keep at most 0.4s of any silent stretch
+  // Voice polish: high-pass rumble filter (~35Hz one-pole) + RMS normalize to a broadcast-ish level
+  if (opts.polish) {
+    for (let ch = 0; ch < 2; ch++) {
+      const d = out[ch];
+      let y = 0, px = 0;
+      for (let i = 0; i < total; i++) { y = 0.995 * (y + d[i] - px); px = d[i]; d[i] = y; }
+    }
+    let sum = 0, c = 0;
+    for (let i = 0; i < total; i += 16) { const v = out[0][i]; if (Math.abs(v) > 0.01) { sum += v * v; c++; } }
+    const rms = Math.sqrt(sum / Math.max(1, c));
+    if (rms > 0.001) {
+      const norm = Math.min(3, 0.17 / rms); // target ≈ -15 dBFS speech RMS, max +9.5dB boost
+      for (let ch = 0; ch < 2; ch++) for (let i = 0; i < total; i++) out[ch][i] *= norm;
+    }
+  }
+
+  // AI tighten: keep at most 0.4s of any silent stretch.
+  // The music-only intro/outro regions are protected from collapsing.
   if (opts.tighten) {
     const win = Math.floor(sr * 0.1);
+    const protectHead = Math.floor(introSec * sr);
+    const protectTail = total - Math.floor(outroSec * sr);
     let w2 = 0, silentRun = 0;
     const nOut = [new Float32Array(total), new Float32Array(total)];
-    for (let w = 0; w < total; w += win) {
+    for (let ch = 0; ch < 2; ch++) nOut[ch].set(out[ch].subarray(0, protectHead), 0);
+    w2 = protectHead;
+    for (let w = protectHead; w < total; w += win) {
+      if (w >= protectTail) { // copy the outro verbatim
+        const e2 = Math.min(w + win, total);
+        for (let ch = 0; ch < 2; ch++) nOut[ch].set(out[ch].subarray(w, e2), w2);
+        w2 += e2 - w;
+        continue;
+      }
       const end = Math.min(w + win, total);
       let rms = 0, c = 0;
       for (let i = w; i < end; i += 8) { rms += out[0][i] * out[0][i]; c++; }
@@ -197,6 +268,14 @@ async function renderMixToWav(trackInputs, bedKind, bedGain = 0.6, opts = {}) {
         for (let i = w; i < end; i++) out[ch][i] += bsrc[i % bl] * g;
       }
     }
+  }
+
+  // Fade in/out: 1.5s at the head, 2.5s at the tail (covers the outro bed)
+  if (opts.fade || outroSec > 0) {
+    const fi = Math.min(Math.floor(sr * 1.5), total);
+    const fo = Math.min(Math.floor(sr * 2.5), total);
+    for (let i = 0; i < fi; i++) { const g = i / fi; out[0][i] *= g; out[1][i] *= g; }
+    for (let i = 0; i < fo; i++) { const g = i / fo; out[0][total - 1 - i] *= g; out[1][total - 1 - i] *= g; }
   }
 
   // Soft clip + 16-bit WAV encode
