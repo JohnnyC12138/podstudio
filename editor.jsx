@@ -1,12 +1,30 @@
 // Edit & Export page — post-recording editor
 
 function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemoveBed }) {
+  // Imported soundtracks (jingles, ad reads, external audio) join the session
+  const [imported, setImported] = React.useState([]);
+  const importInputRef = React.useRef(null);
+  const importFile = async (file) => {
+    if (!file) return;
+    let duration = 0;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      duration = (await ctx.decodeAudioData(await file.arrayBuffer())).duration;
+      ctx.close();
+    } catch (_) { alert('Could not decode this audio file.'); return; }
+    setImported(prev => [...prev, { blob: file, url: URL.createObjectURL(file), name: file.name.replace(/\.[^.]+$/, ''), tint: 'blue', duration }]);
+  };
+
   // Support both old `recording` (single) and new `tracks` (array)
   const effectiveTracks = React.useMemo(() => {
-    if (tracks?.length > 0) return tracks;
-    if (recording) return [{ ...recording, name: 'Your Recording' }];
-    return [];
-  }, [tracks, recording]);
+    const base = tracks?.length > 0 ? tracks : recording ? [{ ...recording, name: 'Your Recording' }] : [];
+    return base.length > 0 || imported.length > 0 ? [...base, ...imported] : [];
+  }, [tracks, recording, imported]);
+
+  // Per-track mix settings: volume, mute, start offset (drag on the timeline)
+  const [trackSettings, setTrackSettings] = React.useState({});
+  const getSet = (i) => trackSettings[i] || { vol: 1, muted: false, offset: 0 };
+  const patchSet = (i, patch) => setTrackSettings(prev => ({ ...prev, [i]: { ...getSet(i), ...patch } }));
 
 
   // Real recording playback — uses first (host) track
@@ -88,7 +106,12 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
     if (mixing) return;
     setMixing(true);
     try {
-      const blob = await renderMixToWav(effectiveTracks.filter(t => t.blob).map(t => t.blob), musicBed?.kind);
+      const blob = await renderMixToWav(
+        effectiveTracks
+          .map((t, i) => ({ blob: t.blob, gain: getSet(i).muted ? 0 : getSet(i).vol, offset: getSet(i).offset }))
+          .filter(t => t.blob && t.gain > 0),
+        musicBed?.kind, 0.6, { tighten }
+      );
       if (blob) {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -115,9 +138,10 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
   // Real timeline length — the longest recorded track
   const totalSeconds = Math.max(
     recDuration || 0,
-    ...effectiveTracks.map(t => t.duration || 0),
+    ...effectiveTracks.map((t, i) => (t.duration || 0) + getSet(i).offset),
     1
   );
+  const [tighten, setTighten] = React.useState(false);
   const [speed, setSpeed] = React.useState(1);
   const setRate = (r) => { setSpeed(r); if (audioRef.current) audioRef.current.playbackRate = r; };
   const seekTo = (sec) => {
@@ -177,6 +201,13 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
           </button>
         )}
         {effectiveTracks.length > 0 && (
+          <label title="Automatically shortens pauses longer than half a second in the exported mix"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: tighten ? 'var(--teal)' : 'var(--fg-2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <input type="checkbox" checked={tighten} onChange={e => setTighten(e.target.checked)} />
+            <I.Sparkle size={11} /> AI tighten pauses
+          </label>
+        )}
+        {effectiveTracks.length > 0 && (
           <button className="btn btn-primary" onClick={exportMix} disabled={mixing}>
             <I.Download size={13} /> {mixing ? 'Rendering…' : musicBed ? 'Export mix (WAV)' : 'Export (WAV)'}
           </button>
@@ -204,14 +235,36 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
           {effectiveTracks.map((track, i) => {
             const tintColors = { terracotta: 'var(--brass)', olive: 'oklch(0.72 0.1 145)', amber: 'var(--amber)', blue: 'var(--teal)', forest: 'oklch(0.65 0.1 155)', purple: 'oklch(0.7 0.14 300)' };
             const barColor = tintColors[track.tint] || 'var(--brass)';
+            const s = getSet(i);
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 6px', borderRadius: 5, marginBottom: 2, background: 'oklch(0.78 0.1 82 / 0.08)', border: '1px solid oklch(0.78 0.1 82 / 0.2)' }}>
-                <div style={{ width: 3, height: 18, borderRadius: 2, background: barColor }} />
-                <span style={{ flex: 1, fontSize: 11.5, color: 'var(--brass-bright)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name || `Track ${i + 1}`}</span>
-                <span className="mono" style={{ fontSize: 9.5, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtTime(i === 0 ? recDuration : track.duration || 0)}</span>
+              <div key={i} style={{ padding: '7px 6px', borderRadius: 5, marginBottom: 2, background: 'oklch(0.78 0.1 82 / 0.08)', border: '1px solid oklch(0.78 0.1 82 / 0.2)', opacity: s.muted ? 0.55 : 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 3, height: 18, borderRadius: 2, background: barColor }} />
+                  <span style={{ flex: 1, fontSize: 11.5, color: 'var(--brass-bright)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name || `Track ${i + 1}`}</span>
+                  <span className="mono" style={{ fontSize: 9.5, color: 'var(--fg-3)', flexShrink: 0 }}>{fmtTime(i === 0 ? recDuration : track.duration || 0)}</span>
+                  <button
+                    onClick={() => patchSet(i, { muted: !s.muted })}
+                    title={s.muted ? 'Unmute' : 'Mute'}
+                    style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: s.muted ? 'oklch(0.85 0.15 25)' : 'var(--fg-3)', padding: '1px 5px', borderRadius: 3, border: '1px solid var(--line-0)', flexShrink: 0 }}
+                  >M</button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, paddingLeft: 9 }}>
+                  <I.Volume size={9} style={{ color: 'var(--fg-3)', flexShrink: 0 }} />
+                  <input type="range" min="0" max="1.5" step="0.05" value={s.vol}
+                    onChange={e => patchSet(i, { vol: parseFloat(e.target.value) })}
+                    className="slider" style={{ flex: 1, height: 3 }} />
+                  {s.offset > 0 && <span className="mono" style={{ fontSize: 8.5, color: 'var(--teal)', flexShrink: 0 }}>+{s.offset.toFixed(1)}s</span>}
+                </div>
               </div>
             );
           })}
+
+          <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', fontSize: 11.5, marginTop: 8 }} onClick={() => importInputRef.current?.click()}>
+            <I.Plus size={11} /> Import audio
+          </button>
+          <input ref={importInputRef} type="file" accept="audio/*" style={{ display: 'none' }}
+            onChange={e => { importFile(e.target.files?.[0]); e.target.value = ''; }} />
+
           <div style={{ height: 1, background: 'var(--line-0)', margin: '16px 0 14px' }} />
 
           <div className="caps" style={{ color: 'var(--fg-3)', padding: '0 6px 8px' }}>Session</div>
@@ -286,6 +339,10 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
                 recTime: i === 0 ? recTime : 0,
                 recPlaying: i === 0 ? recPlaying : false,
                 onPlayPause: i === 0 ? toggleRecPlay : null,
+                muted: getSet(i).muted,
+                offsetFrac: totalSeconds > 0 ? getSet(i).offset / totalSeconds : 0,
+                widthFrac: totalSeconds > 0 ? Math.min(1, (i === 0 ? recDuration : track.duration || 0) / totalSeconds) : 1,
+                onOffset: (deltaFrac) => patchSet(i, { offset: Math.max(0, getSet(i).offset + deltaFrac * totalSeconds) }),
               }))}
             />
           </div>
@@ -359,9 +416,31 @@ function EditorTimeline({ playhead, setPlayhead, totalSeconds, recordingTracks =
         const tintColors = { terracotta: { main: 'var(--brass)', bg: 'oklch(0.78 0.1 82 / 0.08)', border: 'oklch(0.78 0.1 82 / 0.35)', bright: 'var(--brass-bright)' }, olive: { main: 'oklch(0.72 0.1 145)', bg: 'oklch(0.72 0.1 145 / 0.08)', border: 'oklch(0.72 0.1 145 / 0.35)', bright: 'oklch(0.82 0.1 145)' }, amber: { main: 'var(--amber)', bg: 'oklch(0.78 0.15 65 / 0.08)', border: 'oklch(0.78 0.15 65 / 0.35)', bright: 'var(--amber)' }, blue: { main: 'var(--teal)', bg: 'oklch(0.82 0.14 195 / 0.08)', border: 'oklch(0.82 0.14 195 / 0.3)', bright: 'var(--teal)' }, forest: { main: 'oklch(0.65 0.1 155)', bg: 'oklch(0.65 0.1 155 / 0.08)', border: 'oklch(0.65 0.1 155 / 0.3)', bright: 'oklch(0.75 0.1 155)' }, purple: { main: 'oklch(0.7 0.14 300)', bg: 'oklch(0.7 0.14 300 / 0.08)', border: 'oklch(0.7 0.14 300 / 0.3)', bright: 'oklch(0.8 0.14 300)' } };
         const tc = tintColors[rt.tint] || tintColors.terracotta;
         const playFrac = rt.duration > 0 ? rt.recTime / rt.duration : 0;
+        const startDrag = (e) => {
+          if (!rt.onOffset) return;
+          e.stopPropagation();
+          const row = e.currentTarget.parentElement;
+          const width = row.getBoundingClientRect().width || 1;
+          let lastX = e.clientX;
+          const move = (ev) => { rt.onOffset((ev.clientX - lastX) / width); lastX = ev.clientX; };
+          const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', up);
+        };
         return (
-          <div key={ri} style={{ height: 56, marginBottom: 4, background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 4, bottom: 4, padding: '3px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div key={ri} style={{ height: 56, marginBottom: 4, background: 'var(--bg-1)', border: '1px solid var(--line-0)', borderRadius: 4, position: 'relative', overflow: 'hidden', opacity: rt.muted ? 0.45 : 1 }} onClick={e => e.stopPropagation()}>
+            <div
+              onPointerDown={startDrag}
+              title="Drag to shift this track in time"
+              style={{
+                position: 'absolute', top: 4, bottom: 4,
+                left: `${(rt.offsetFrac || 0) * 100}%`,
+                width: `${(rt.widthFrac || 1) * 100}%`,
+                minWidth: 120,
+                padding: '3px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                background: tc.bg, border: `1px solid ${tc.border}`, borderRadius: 4,
+                cursor: rt.onOffset ? 'grab' : 'default', touchAction: 'none',
+              }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
                 {rt.onPlayPause ? (
                   <button onClick={rt.onPlayPause} style={{ width: 18, height: 18, borderRadius: '50%', background: rt.recPlaying ? tc.main : `${tc.main}44`, color: tc.bright, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

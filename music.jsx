@@ -128,29 +128,56 @@ async function autoMatchBed(blob) {
 }
 
 // ── Export: mix voice tracks + looped bed (with ducking) to WAV ─
-async function renderMixToWav(trackBlobs, bedKind, bedGain = 0.6) {
+// trackInputs: Blob[] (legacy) or [{ blob, gain = 1, offset = 0 }]
+// opts.tighten: collapse pauses longer than ~0.5s down to 0.4s (on-device "AI cut")
+async function renderMixToWav(trackInputs, bedKind, bedGain = 0.6, opts = {}) {
+  const items = trackInputs
+    .map(t => (t instanceof Blob ? { blob: t, gain: 1, offset: 0 } : t))
+    .filter(t => t && t.blob && (t.gain === undefined || t.gain > 0));
   const AC = window.AudioContext || window.webkitAudioContext;
   const dctx = new AC();
-  const voiceBufs = [];
-  for (const blob of trackBlobs) {
-    try { voiceBufs.push(await dctx.decodeAudioData(await blob.arrayBuffer())); } catch (_) {}
+  const voices = [];
+  for (const it of items) {
+    try {
+      voices.push({ buf: await dctx.decodeAudioData(await it.blob.arrayBuffer()), gain: it.gain ?? 1, offset: Math.max(0, it.offset || 0) });
+    } catch (_) {}
   }
   dctx.close();
-  if (voiceBufs.length === 0) return null;
+  if (voices.length === 0) return null;
 
   const sr = 44100;
-  const lenSec = Math.max(...voiceBufs.map(b => b.duration));
-  const total = Math.ceil(lenSec * sr);
-  const out = [new Float32Array(total), new Float32Array(total)];
+  const lenSec = Math.max(...voices.map(v => v.buf.duration + v.offset));
+  let total = Math.ceil(lenSec * sr);
+  let out = [new Float32Array(total), new Float32Array(total)];
 
-  // Sum voices
-  for (const b of voiceBufs) {
-    const ratio = b.sampleRate / sr;
+  // Sum voices with per-track gain and start offset
+  for (const v of voices) {
+    const ratio = v.buf.sampleRate / sr;
+    const off = Math.floor(v.offset * sr);
     for (let ch = 0; ch < 2; ch++) {
-      const src = b.getChannelData(Math.min(ch, b.numberOfChannels - 1));
-      const n = Math.min(total, Math.floor(src.length / ratio));
-      for (let i = 0; i < n; i++) out[ch][i] += src[Math.floor(i * ratio)];
+      const src = v.buf.getChannelData(Math.min(ch, v.buf.numberOfChannels - 1));
+      const n = Math.min(total - off, Math.floor(src.length / ratio));
+      for (let i = 0; i < n; i++) out[ch][off + i] += src[Math.floor(i * ratio)] * v.gain;
     }
+  }
+
+  // AI tighten: keep at most 0.4s of any silent stretch
+  if (opts.tighten) {
+    const win = Math.floor(sr * 0.1);
+    let w2 = 0, silentRun = 0;
+    const nOut = [new Float32Array(total), new Float32Array(total)];
+    for (let w = 0; w < total; w += win) {
+      const end = Math.min(w + win, total);
+      let rms = 0, c = 0;
+      for (let i = w; i < end; i += 8) { rms += out[0][i] * out[0][i]; c++; }
+      rms = Math.sqrt(rms / c);
+      silentRun = rms < 0.012 ? silentRun + 1 : 0;
+      if (silentRun > 4) continue; // drop beyond 0.4s of continuous silence
+      for (let ch = 0; ch < 2; ch++) nOut[ch].set(out[ch].subarray(w, end), w2);
+      w2 += end - w;
+    }
+    out = [nOut[0].subarray(0, w2), nOut[1].subarray(0, w2)];
+    total = w2;
   }
 
   // Bed loop with ducking: bed drops to 35% while someone is speaking

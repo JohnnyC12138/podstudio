@@ -100,6 +100,8 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const [localStream, setLocalStream] = React.useState(null);
   const [pendingPhase, setPendingPhase] = React.useState(null);
   const [finishedTracks, setFinishedTracks] = React.useState([]);
+  const [finishedVideos, setFinishedVideos] = React.useState([]);
+  const videoRecordersRef = React.useRef([]);
   const [cameraPref, setCameraPref] = React.useState(false);
   const [userName, setUserName] = React.useState(() => localStorage.getItem('podstudio-name') || '');
   const [episodeTitle, setEpisodeTitle] = React.useState(() => localStorage.getItem('podstudio-episode-title') || '');
@@ -306,7 +308,26 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
         }
       });
     }
-    console.log('[Podstudio] recording started, tracks:', 1 + Object.keys(trackRecordersRef.current).length);
+    // Video recorders: one per participant whose stream has a live camera.
+    // Kept separate from the audio pipeline so audio tracks stay clean.
+    videoRecordersRef.current = [];
+    const startVideoRec = (stream, name) => {
+      if (!stream || !stream.getVideoTracks().some(t => t.readyState === 'live')) return;
+      try {
+        const s = new MediaStream([...stream.getVideoTracks(), ...stream.getAudioTracks()]);
+        const vMime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') ? 'video/webm;codecs=vp9,opus' :
+                      MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
+        const vr = new MediaRecorder(s, vMime ? { mimeType: vMime, videoBitsPerSecond: 1200000 } : {});
+        const chunks = [];
+        vr.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data); };
+        vr.start(500);
+        videoRecordersRef.current.push({ vr, chunks, name });
+      } catch (e) { console.warn('[Podstudio] video recorder failed:', e); }
+    };
+    startVideoRec(streamRef.current, myName);
+    if (isRoomSession) Object.values(peers).forEach(p => startVideoRec(p.stream, p.name || 'Guest'));
+
+    console.log('[Podstudio] recording started, tracks:', 1 + Object.keys(trackRecordersRef.current).length, '· video:', videoRecordersRef.current.length);
   };
 
   const stopRecording = () => {
@@ -318,11 +339,22 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
       rec.stop().then(blob => blob ? { blob, url: URL.createObjectURL(blob), name, tint } : null)
     );
 
+    // Stop video recorders and collect their files
+    const videoStopPromises = videoRecordersRef.current.map(({ vr, chunks, name }) =>
+      new Promise(resolve => {
+        vr.addEventListener('stop', () => {
+          const blob = new Blob(chunks, { type: vr.mimeType || 'video/webm' });
+          resolve(blob.size > 0 ? { blob, url: URL.createObjectURL(blob), name } : null);
+        }, { once: true });
+        try { if (vr.state === 'recording') vr.requestData(); vr.stop(); } catch (_) { resolve(null); }
+      })
+    );
+
     mr.addEventListener('stop', () => {
       const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
       const hostTrack = blob.size > 0 ? { blob, url: URL.createObjectURL(blob), name: myName, duration: elapsedRef.current } : null;
-      Promise.all(guestStopPromises).then(guestTracks => {
-        finishSession(hostTrack, guestTracks.filter(Boolean));
+      Promise.all([Promise.all(guestStopPromises), Promise.all(videoStopPromises)]).then(([guestTracks, videos]) => {
+        finishSession(hostTrack, guestTracks.filter(Boolean), videos.filter(Boolean));
       });
     }, { once: true });
 
@@ -349,10 +381,11 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     if (phase !== 'greenRoom' && pendingPhase) setPendingPhase(null);
   }, [phase]);
 
-  const finishSession = (hostTrack, guestTracks) => {
+  const finishSession = (hostTrack, guestTracks, videos = []) => {
     const allTracks = [hostTrack, ...guestTracks].filter(Boolean);
     if (allTracks.length > 0) onRecordingComplete?.(allTracks);
     setFinishedTracks(allTracks);
+    setFinishedVideos(videos);
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     goToPhase('wrap');
   };
@@ -431,7 +464,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   }
 
   if (phase === 'wrap') {
-    return <WrapScreen elapsed={elapsed} tracks={finishedTracks} episodeTitle={episodeTitle} isHost={isHost} />;
+    return <WrapScreen elapsed={elapsed} tracks={finishedTracks} videos={finishedVideos} episodeTitle={episodeTitle} isHost={isHost} />;
   }
 
   // Collapse side rails on narrower viewports so the stage stays usable
@@ -631,21 +664,33 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
                 <ToolbarBtn icon={micOn ? I.Mic : I.MicOff} label={micOn ? 'Mic on' : 'Muted'} active={micOn} onClick={() => setMicOn(!micOn)} danger={!micOn} />
                 <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label={camOn ? 'Camera' : 'Cam off'} active={camOn} onClick={toggleCam} danger={!camOn} />
                 <div style={{ width: 1, height: 26, background: 'oklch(0.78 0.1 82 / 0.2)', margin: '0 4px' }} />
-                <button className="btn btn-rec" onClick={() => goToPhase('countdown')} style={{ padding: '10px 18px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <span className="rec-dot" style={{ background: 'white', animation: 'none' }} />
-                  Start
-                </button>
+                {isHost ? (
+                  <button className="btn btn-rec" onClick={() => goToPhase('countdown')} style={{ padding: '10px 18px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    <span className="rec-dot" style={{ background: 'white', animation: 'none' }} />
+                    Start
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'oklch(0.92 0 0)', padding: '0 10px', whiteSpace: 'nowrap' }}>
+                    Waiting for the host to start…
+                  </span>
+                )}
               </>
             ) : (
               <>
                 <ToolbarBtn icon={micOn ? I.Mic : I.MicOff} label={micOn ? 'Mic' : 'Muted'} active={micOn} onClick={() => setMicOn(!micOn)} danger={!micOn} />
                 <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label="Camera" active={camOn} onClick={toggleCam} />
-                <ToolbarBtn icon={I.Music} label="Music" onClick={openMusic} />
-                <ToolbarBtn icon={paused ? I.Play : I.Pause} label={paused ? 'Resume' : 'Pause'} onClick={() => setPaused(!paused)} />
+                {isHost && <ToolbarBtn icon={I.Music} label="Music" onClick={openMusic} />}
+                {isHost && <ToolbarBtn icon={paused ? I.Play : I.Pause} label={paused ? 'Resume' : 'Pause'} onClick={() => setPaused(!paused)} />}
                 <div style={{ width: 1, height: 26, background: 'oklch(0.78 0.1 82 / 0.2)', margin: '0 4px' }} />
-                <button className="btn btn-rec" onClick={stopRecording} style={{ padding: '10px 16px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <I.Stop size={12} /> End
-                </button>
+                {isHost ? (
+                  <button className="btn btn-rec" onClick={stopRecording} style={{ padding: '10px 16px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    <I.Stop size={12} /> End
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'oklch(0.92 0 0)', padding: '0 10px', whiteSpace: 'nowrap' }}>
+                    Recording · host ends the session
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -1142,8 +1187,9 @@ function StudioRoomCard({ guests, roomId, isHost, connectionStatus, openInvite }
 // ─────────────────────────────────────────────────────────────
 // Wrap screen — "That's a wrap"
 // ─────────────────────────────────────────────────────────────
-function WrapScreen({ elapsed, tracks = [], episodeTitle, isHost }) {
+function WrapScreen({ elapsed, tracks = [], videos = [], episodeTitle, isHost }) {
   const [shared, setShared] = React.useState(false);
+  const [composerOpen, setComposerOpen] = React.useState(false);
   const safeTitle = (episodeTitle || 'episode').replace(/[^\w一-鿿-]+/g, '-').slice(0, 40);
   const ext = (blob) => (blob?.type || '').includes('ogg') ? 'ogg' : 'webm';
   const fileName = (t) => `${safeTitle}-${(t.name || 'track').replace(/[^\w一-鿿-]+/g, '-')}.${ext(t.blob)}`;
@@ -1220,6 +1266,33 @@ function WrapScreen({ elapsed, tracks = [], episodeTitle, isHost }) {
             </div>
           )}
 
+          {videos.length > 0 && (
+            <div className="card" style={{ padding: 16, marginBottom: 20, background: 'oklch(0.18 0.02 165 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
+              <div className="caps" style={{ marginBottom: 12 }}>Video recordings</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {videos.map((v, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--line-0)', borderRadius: 8 }}>
+                    <I.Video size={14} style={{ color: 'var(--brass)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{v.name}</div>
+                      <div className="mono" style={{ fontSize: 10.5, color: 'var(--fg-3)' }}>{(v.blob.size / 1024 / 1024).toFixed(1)} MB · WebM</div>
+                    </div>
+                    <button className="btn" style={{ fontSize: 11, padding: '6px 10px' }} onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = v.url; a.download = `${(episodeTitle || 'episode').replace(/[^\w一-鿿-]+/g, '-')}-${v.name.replace(/[^\w一-鿿-]+/g, '-')}.webm`;
+                      document.body.appendChild(a); a.click(); a.remove();
+                    }}>
+                      <I.Download size={11} /> Save
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setComposerOpen(true)}>
+                <I.Video size={12} /> Create video episode…
+              </button>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: tracks.length === 0 ? 28 : 0 }}>
             <button className="btn btn-lg" onClick={() => window.__setPage('home')}>
               <I.Home size={13} /> Back home
@@ -1230,6 +1303,8 @@ function WrapScreen({ elapsed, tracks = [], episodeTitle, isHost }) {
               </button>
             )}
           </div>
+
+          {composerOpen && <VideoComposeModal videos={videos} episodeTitle={episodeTitle} onClose={() => setComposerOpen(false)} />}
         </div>
       </div>
     </div>
