@@ -419,6 +419,12 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const level = Math.max(myLevel, 0.04);
   const inputDb = myLevel > 0.001 ? Math.max(-60, Math.round(20 * Math.log10(myLevel))) : null;
 
+  // Flag a live session for the app-level "don't lose the recording" guard
+  React.useEffect(() => {
+    window.__recordingActive = phase === 'record';
+    return () => { window.__recordingActive = false; };
+  }, [phase]);
+
   // Elapsed timer
   React.useEffect(() => {
     if (phase !== 'record' || paused) return;

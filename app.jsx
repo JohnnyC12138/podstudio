@@ -33,6 +33,16 @@ function App() {
   // Expose setter so pages can cross-navigate without prop-drilling
   React.useEffect(() => { window.__setPage = setPage; }, []);
 
+  // Recordings live only in memory — warn before the tab discards them.
+  // StudioPage sets window.__recordingActive while a session is rolling.
+  React.useEffect(() => {
+    const guard = (e) => {
+      if (tracks.length > 0 || window.__recordingActive) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [tracks]);
+
   // Tweaks host protocol
   React.useEffect(() => {
     const onMsg = (e) => {
