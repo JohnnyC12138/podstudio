@@ -50,7 +50,7 @@ function peerTint(peerId) {
   return tints[h % tints.length];
 }
 
-function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaChange }) {
+function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaChange, onTrackReceived }) {
   const peerRef = React.useRef(null);
   const peerReadyRef = React.useRef(false);
   const dataConnsRef = React.useRef({});
@@ -61,9 +61,12 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
   const [chatMessages, setChatMessages] = React.useState([]);
   const onPhaseChangeRef = React.useRef(onPhaseChange);
   const onMetaChangeRef = React.useRef(onMetaChange);
+  const onTrackReceivedRef = React.useRef(onTrackReceived);
+  const incomingTracksRef = React.useRef({}); // fromId → { name, mime, chunks[] }
 
   React.useEffect(() => { onPhaseChangeRef.current = onPhaseChange; }, [onPhaseChange]);
   React.useEffect(() => { onMetaChangeRef.current = onMetaChange; }, [onMetaChange]);
+  React.useEffect(() => { onTrackReceivedRef.current = onTrackReceived; }, [onTrackReceived]);
   React.useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
 
   const handleMsg = React.useCallback((msg, fromId) => {
@@ -84,6 +87,18 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
         ...p,
         [fromId]: { ...(p[fromId] || {}), name: msg.name, status: 'joined', tint: p[fromId]?.tint || peerTint(fromId) },
       }));
+    } else if (msg.type === 'tkmeta') {
+      // Guest is about to send their full-quality local recording
+      incomingTracksRef.current[fromId] = { name: msg.name, mime: msg.mime, chunks: [] };
+    } else if (msg.type === 'tkchunk') {
+      incomingTracksRef.current[fromId]?.chunks.push(msg.data);
+    } else if (msg.type === 'tkend') {
+      const inc = incomingTracksRef.current[fromId];
+      if (inc) {
+        const blob = new Blob(inc.chunks, { type: inc.mime || 'audio/webm' });
+        delete incomingTracksRef.current[fromId];
+        if (blob.size > 0) onTrackReceivedRef.current?.({ blob, name: inc.name, fromId });
+      }
     }
   }, []);
 
@@ -310,7 +325,26 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
     broadcast({ type: 'meta', meta });
   }, [broadcast]);
 
-  return { peers, connectionStatus, chatMessages, sendChat, sendPhase, sendMeta };
+  // Guest → host: stream the full-quality local recording over the data
+  // channel in 256KB chunks (PeerJS serializes typed arrays natively)
+  const sendTrack = React.useCallback(async (blob, name, onProgress) => {
+    const conns = Object.values(dataConnsRef.current).filter(c => c.open);
+    if (conns.length === 0 || !blob) return false;
+    const conn = conns[0]; // guests only hold the host connection
+    const CHUNK = 256 * 1024;
+    conn.send({ type: 'tkmeta', name, mime: blob.type, size: blob.size });
+    for (let off = 0; off < blob.size; off += CHUNK) {
+      const buf = new Uint8Array(await blob.slice(off, off + CHUNK).arrayBuffer());
+      conn.send({ type: 'tkchunk', data: buf });
+      onProgress?.(Math.min(1, (off + CHUNK) / blob.size));
+      // Yield so the channel's send buffer can drain
+      await new Promise(r => setTimeout(r, 25));
+    }
+    conn.send({ type: 'tkend' });
+    return true;
+  }, []);
+
+  return { peers, connectionStatus, chatMessages, sendChat, sendPhase, sendMeta, sendTrack };
 }
 
 window.generateRoomId = generateRoomId;

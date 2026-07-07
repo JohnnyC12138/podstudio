@@ -1,19 +1,31 @@
 // Recording Studio — immersive broadcast space
 
-// Real audio level (0..1 RMS) for any MediaStream — drives every meter in the studio
+// Real audio level (0..1 RMS) for any MediaStream — drives every meter in the studio.
+// One shared AudioContext + one analyser per stream: iOS caps concurrent
+// contexts, and several meters often watch the same stream.
+const _levelShared = { ctx: null, byStream: new WeakMap() };
+function getSharedAnalyser(stream) {
+  if (!_levelShared.ctx) _levelShared.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_levelShared.ctx.state === 'suspended') _levelShared.ctx.resume().catch(() => {});
+  let an = _levelShared.byStream.get(stream);
+  if (!an) {
+    const src = _levelShared.ctx.createMediaStreamSource(stream);
+    an = _levelShared.ctx.createAnalyser();
+    an.fftSize = 256;
+    an.smoothingTimeConstant = 0.55;
+    src.connect(an);
+    _levelShared.byStream.set(stream, an);
+  }
+  return an;
+}
+
 function useStreamLevel(stream) {
   const [level, setLevel] = React.useState(0);
   React.useEffect(() => {
     if (!stream || stream.getAudioTracks().length === 0) { setLevel(0); return; }
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    let ctx, src, raf;
+    let raf;
     try {
-      ctx = new Ctx();
-      src = ctx.createMediaStreamSource(stream);
-      const an = ctx.createAnalyser();
-      an.fftSize = 256;
-      an.smoothingTimeConstant = 0.55;
-      src.connect(an);
+      const an = getSharedAnalyser(stream);
       const data = new Uint8Array(an.fftSize);
       let last = 0;
       const tick = (t) => {
@@ -28,11 +40,7 @@ function useStreamLevel(stream) {
       };
       raf = requestAnimationFrame(tick);
     } catch (e) { console.warn('[Level] analyser failed:', e); }
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      try { src && src.disconnect(); } catch (_) {}
-      try { ctx && ctx.state !== 'closed' && ctx.close(); } catch (_) {}
-    };
+    return () => { if (raf) cancelAnimationFrame(raf); };
   }, [stream]);
   return level;
 }
@@ -132,13 +140,23 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   // WebRTC room — must be declared before isRoomSession so peers is available.
   // The room only goes live once the user has entered their name, so peers
   // always see real names (guests retry until the host's room appears).
-  const { peers, connectionStatus, chatMessages, sendChat, sendPhase, sendMeta } = useRoom({
+  const { peers, connectionStatus, chatMessages, sendChat, sendPhase, sendMeta, sendTrack } = useRoom({
     roomId: userName ? roomId : null,
     isHost,
     localStream,
     userName: myName,
     onMetaChange: (meta) => {
       if (!isHost && meta && typeof meta.title === 'string') setEpisodeTitle(meta.title);
+    },
+    onTrackReceived: ({ blob, name }) => {
+      // A guest pushed their full-quality local recording after wrap —
+      // it supersedes the WebRTC-compressed copy we recorded on our side
+      const track = { blob, url: URL.createObjectURL(blob), name: `${name} (HD)`, tint: 'blue' };
+      setFinishedTracks(prev => {
+        const next = [...prev, track];
+        onRecordingComplete?.(next);
+        return next;
+      });
     },
     onPhaseChange: (remotePhase) => {
       if (isHost) return;
@@ -388,6 +406,12 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     setFinishedVideos(videos);
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     goToPhase('wrap');
+    // Guests push their full-quality local track to the host automatically
+    if (!isHost && hostTrack?.blob) {
+      sendTrack(hostTrack.blob, myName).then(ok => {
+        if (ok) console.log('[Podstudio] HQ track sent to host');
+      }).catch(e => console.warn('[Podstudio] track send failed:', e));
+    }
   };
 
   // Real mic level drives the sculpture glow and the Signal meter
@@ -401,6 +425,20 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     const id = setInterval(() => setElapsed(e => e + 1), 1000);
     return () => clearInterval(id);
   }, [phase, paused]);
+
+  // Pause actually pauses every recorder (solo sessions only — cross-device
+  // pause would desync guest tracks, so the button is hidden in rooms)
+  React.useEffect(() => {
+    if (phase !== 'record') return;
+    const syncRec = (r) => {
+      try {
+        if (paused && r.state === 'recording') r.pause();
+        if (!paused && r.state === 'paused') r.resume();
+      } catch (_) {}
+    };
+    if (mediaRecorderRef.current) syncRec(mediaRecorderRef.current);
+    videoRecordersRef.current.forEach(({ vr }) => syncRec(vr));
+  }, [paused, phase]);
 
   // Coach tip — show once, 2s after recording starts
   React.useEffect(() => {
@@ -680,7 +718,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
                 <ToolbarBtn icon={micOn ? I.Mic : I.MicOff} label={micOn ? 'Mic' : 'Muted'} active={micOn} onClick={() => setMicOn(!micOn)} danger={!micOn} />
                 <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label="Camera" active={camOn} onClick={toggleCam} />
                 {isHost && <ToolbarBtn icon={I.Music} label="Music" onClick={openMusic} />}
-                {isHost && <ToolbarBtn icon={paused ? I.Play : I.Pause} label={paused ? 'Resume' : 'Pause'} onClick={() => setPaused(!paused)} />}
+                {isHost && !isRoomSession && <ToolbarBtn icon={paused ? I.Play : I.Pause} label={paused ? 'Resume' : 'Pause'} onClick={() => setPaused(!paused)} />}
                 <div style={{ width: 1, height: 26, background: 'oklch(0.78 0.1 82 / 0.2)', margin: '0 4px' }} />
                 {isHost ? (
                   <button className="btn btn-rec" onClick={stopRecording} style={{ padding: '10px 16px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
