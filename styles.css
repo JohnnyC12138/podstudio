@@ -464,3 +464,8 @@ button { background: none; border: none; cursor: pointer; padding: 0; }
   background: radial-gradient(ellipse at center, transparent 30%, oklch(0 0 0 / 0.6) 100%);
   pointer-events: none;
 }
+
+/* Scene ambience animations */
+@keyframes sc-drift { from { transform: translateX(-2.5%); } to { transform: translateX(2.5%); } }
+@keyframes sc-firefly { 0%, 100% { opacity: 0; transform: translateY(0); } 50% { opacity: 0.9; transform: translateY(-16px); } }
+@keyframes sc-twinkle { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.95; } }
