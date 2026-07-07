@@ -278,6 +278,12 @@ Root component and global state:
 - **Mobile/guest layout**: sidebar hidden for guests and below 920px; Green Room collapses to a single column with smaller type on narrow screens.
 - **Verified in-browser** (preview + simulated host peer): guest name gate → green room join → real names on both sides → title sync → phase-sync banner all confirmed working against the live PeerJS broker.
 
+### Camera + music + de-mocking (July 2026)
+- **Remote audio playback fix**: added a hidden `RemoteAudio` layer that attaches every peer stream to an `<audio>` element — Chrome only feeds WebRTC streams into `AnalyserNode`s while an HTMLMediaElement consumes them, so this also fixed "guest level meter never moves on host".
+- **Camera support**: opt-in toggle in the Green Room ("Join with camera on/off"); `getUserMedia` requests video at sound-check entry with audio-only fallback. Self-preview tile (mirrored) top-right of the stage; guest tiles render live video via `VideoTile` when the peer has a live video track. Recording stays **audio-only** (recorders receive `new MediaStream(stream.getAudioTracks())`). Camera toggle mutes/unmutes the video track — no mid-call renegotiation.
+- **Background music (`music.jsx`)**: three beds synthesized on-device with `OfflineAudioContext` (Warm Glow / Night Drift / Paper Lights) — no licensed assets. Previewable (looped), selectable in the rebuilt `MusicModal`, and **"Auto-match to my episode"** analyzes the recording's energy on-device to pick a bed. `renderMixToWav` mixes all voice tracks + looped bed with 100ms-window ducking (bed drops to 35% under speech), soft-clips, and encodes 16-bit stereo WAV. Wired into the editor toolbar ("Add music" / "Export mix (WAV)") and the rebuilt `ExportModal` (Mixed master WAV or separate stems).
+- **De-mocked**: sidebar (real user name, current episode, honest storage note — removed fake episodes/storage bar/"Noa Weiss Pro plan"), export modal (real title/track count, working export), studio (removed dead Ambience panel and Effects button, real dB in the record banner, `myName` on the live chip).
+
 ### Current validation status
 - Solo recording flow is implemented in-browser.
 - WebRTC guest connection is implemented but still needs real-world host/guest testing across two browser sessions/devices.
