@@ -91,6 +91,28 @@ function LandingPage({ setPage, openInvite }) {
         </div>
       </div>
 
+      {/* How it works — the whole product in three steps */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 48px 0' }}>
+        <div className="caps" style={{ color: 'var(--terracotta)', marginBottom: 14 }}>How it works</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          {[
+            { n: '1', t: 'Record', d: 'Open the Studio, invite guests by link, sound-check, hit Start. Everyone records locally in their browser.', cta: 'Studio', page: 'studio', i: I.Mic },
+            { n: '2', t: 'Edit', d: 'Tracks land in the Editor automatically. Drag, mix volumes, add music, tighten pauses with AI.', cta: 'Editor', page: 'edit', i: I.Edit },
+            { n: '3', t: 'Export', d: 'One mixed WAV, separate stems, or a composed video episode — all rendered on your device.', cta: null, page: null, i: I.Download },
+          ].map((s, i) => (
+            <div key={i} className="card" style={{ padding: 20, cursor: s.page ? 'pointer' : 'default' }} onClick={() => s.page && setPage(s.page)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span className="display" style={{ fontSize: 28, color: 'var(--terracotta)', lineHeight: 1 }}>{s.n}</span>
+                <s.i size={16} style={{ color: 'var(--fg-2)' }} />
+                <span style={{ fontSize: 15, fontWeight: 600 }}>{s.t}</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--fg-2)', lineHeight: 1.6 }}>{s.d}</div>
+              {s.cta && <div style={{ fontSize: 12, color: 'var(--terracotta)', marginTop: 10 }}>Open {s.cta} →</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Feature row */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '72px 48px' }}>
         <h2 className="display" style={{ fontSize: 36, margin: 0, maxWidth: 560 }}>

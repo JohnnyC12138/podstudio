@@ -5,8 +5,8 @@ function Sidebar({ page, setPage }) {
   const episodeTitle = localStorage.getItem('podstudio-episode-title') || '';
   const items = [
     { key: 'home', label: 'Home', icon: I.Home },
-    { key: 'studio', label: 'Studio', icon: I.Mic },
-    { key: 'edit', label: 'Editor', icon: I.Edit },
+    { key: 'studio', label: 'Studio', icon: I.Mic, sub: 'record' },
+    { key: 'edit', label: 'Editor', icon: I.Edit, sub: 'mix & export' },
   ];
 
   return (
@@ -49,7 +49,8 @@ function Sidebar({ page, setPage }) {
             onClick={() => setPage(item.key)}
           >
             <item.icon size={15} />
-            <span>{item.label}</span>
+            <span style={{ flex: 1 }}>{item.label}</span>
+            {item.sub && <span style={{ fontSize: 9.5, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.sub}</span>}
           </div>
         ))}
       </div>
