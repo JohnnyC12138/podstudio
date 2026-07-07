@@ -14,6 +14,7 @@ function App() {
   const [tweaks, setTweaks] = React.useState(TWEAKS);
   const [tweaksOpen, setTweaksOpen] = React.useState(false);
   const [tracks, setTracks] = React.useState([]);
+  const [musicBed, setMusicBed] = React.useState(null);
   const [roomId] = React.useState(() => urlRoomId || Math.random().toString(36).slice(2, 8).toUpperCase());
   const [isHost] = React.useState(() => !urlRoomId);
 
@@ -98,12 +99,12 @@ function App() {
         {page === 'home' && <LandingPage setPage={setPage} openInvite={openInvite} />}
         {page === 'onboarding' && <OnboardingPage setPage={setPage} setStudioMode={setStudioMode} />}
         {page === 'studio' && <StudioPage openInvite={openInvite} openMusic={() => setModal('music')} studioMode={studioMode} roomId={roomId} isHost={isHost} onRecordingComplete={(newTracks) => setTracks(newTracks)} />}
-        {page === 'edit' && <EditorPage openExport={() => setModal('export')} tracks={tracks} />}
+        {page === 'edit' && <EditorPage openExport={() => setModal('export')} openMusic={() => setModal('music')} tracks={tracks} musicBed={musicBed} onRemoveBed={() => setMusicBed(null)} />}
       </main>
 
       {modal === 'invite' && <InviteModal onClose={() => setModal(null)} roomId={roomId} />}
-      {modal === 'music' && <MusicModal onClose={() => setModal(null)} />}
-      {modal === 'export' && <ExportModal onClose={() => setModal(null)} />}
+      {modal === 'music' && <MusicModal onClose={() => setModal(null)} onPick={setMusicBed} tracks={tracks} currentBed={musicBed} />}
+      {modal === 'export' && <ExportModal onClose={() => setModal(null)} tracks={tracks} musicBed={musicBed} />}
 
       {tweaksOpen && (
         <div style={{

@@ -37,6 +37,35 @@ function useStreamLevel(stream) {
   return level;
 }
 
+// Plays a remote peer's audio. Also required for metering: Chrome only feeds
+// WebRTC streams into AnalyserNodes while an HTMLMediaElement is consuming them.
+function RemoteAudio({ stream }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || !stream) return;
+    el.srcObject = stream;
+    el.play().catch(() => {});
+  }, [stream]);
+  return <audio ref={ref} autoPlay playsInline />;
+}
+
+// Renders a live video stream into a tile
+function VideoTile({ stream, muted = true, style }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || !stream) return;
+    el.srcObject = stream;
+    el.play().catch(() => {});
+  }, [stream]);
+  return <video ref={ref} autoPlay playsInline muted={muted} style={{ width: '100%', height: '100%', objectFit: 'cover', ...style }} />;
+}
+
+function hasLiveVideo(stream) {
+  return !!stream && stream.getVideoTracks().some(t => t.readyState === 'live' && t.enabled);
+}
+
 // Segmented meter driven by real audio (replaces the decorative AnimatedLevel)
 function LiveLevel({ stream, segments = 10 }) {
   const level = useStreamLevel(stream);
@@ -64,15 +93,14 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   const [paused, setPaused] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
   const [micOn, setMicOn] = React.useState(true);
-  const [camOn, setCamOn] = React.useState(true);
-  const [ambient, setAmbient] = React.useState('none');
-  const [musicBed, setMusicBed] = React.useState(false);
+  const [camOn, setCamOn] = React.useState(false);
   const [coachSeen, setCoachSeen] = React.useState(() => localStorage.getItem('podstudio-coach-seen') === '1');
   const [showCoach, setShowCoach] = React.useState(false);
   const [micError, setMicError] = React.useState(null);
   const [localStream, setLocalStream] = React.useState(null);
   const [pendingPhase, setPendingPhase] = React.useState(null);
   const [finishedTracks, setFinishedTracks] = React.useState([]);
+  const [cameraPref, setCameraPref] = React.useState(false);
   const [userName, setUserName] = React.useState(() => localStorage.getItem('podstudio-name') || '');
   const [episodeTitle, setEpisodeTitle] = React.useState(() => localStorage.getItem('podstudio-episode-title') || '');
 
@@ -177,12 +205,25 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     ];
   }, [isRoomSession, peers, isHost, myName, localStream]);
 
-  // Request mic on sound-check entry
+  // Request mic (and camera, if chosen in the green room) on sound-check entry
   React.useEffect(() => {
     if (phase !== 'check') return;
     const initMic = async () => {
+      let stream;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: cameraPref ? { width: { ideal: 640 }, facingMode: 'user' } : false,
+        });
+      } catch (err) {
+        if (cameraPref) {
+          // Camera failed — retry audio-only rather than blocking the session
+          try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch (_) {}
+        }
+      }
+      if (!stream) { setMicError('Microphone access denied. Check browser permissions.'); return; }
+      try {
+        setCamOn(stream.getVideoTracks().length > 0);
         streamRef.current = stream;
         setLocalStream(stream);
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -208,6 +249,16 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     };
   }, []);
 
+  // Camera toggle mutes/unmutes the video track (choice is made in the green room;
+  // mid-call renegotiation isn't supported by the current PeerJS setup)
+  const toggleCam = () => {
+    const vts = streamRef.current?.getVideoTracks() || [];
+    if (vts.length === 0) { setCamOn(false); return; }
+    const next = !camOn;
+    vts.forEach(t => { t.enabled = next; });
+    setCamOn(next);
+  };
+
   // Phase change — host broadcasts to guests
   const goToPhase = (newPhase) => {
     setPhase(newPhase);
@@ -222,7 +273,8 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
       MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
       MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' :
       MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : '';
-    const mr = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : {});
+    // Podcast tracks are audio-only even when cameras are on
+    const mr = new MediaRecorder(new MediaStream(streamRef.current.getAudioTracks()), mimeType ? { mimeType } : {});
     mr.ondataavailable = e => { if (e.data?.size > 0) chunksRef.current.push(e.data); };
     mr.start(250);
     mediaRecorderRef.current = mr;
@@ -231,8 +283,8 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     trackRecordersRef.current = {};
     if (isRoomSession) {
       Object.entries(peers).forEach(([id, p]) => {
-        if (p.stream) {
-          const rec = createTrackRecorder(p.stream);
+        if (p.stream && p.stream.getAudioTracks().length > 0) {
+          const rec = createTrackRecorder(new MediaStream(p.stream.getAudioTracks()));
           rec.start();
           trackRecordersRef.current[id] = { rec, name: p.name || 'Guest', tint: p.tint || 'olive' };
         }
@@ -267,8 +319,8 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     const mr = mediaRecorderRef.current;
     if (!mr || mr.state === 'inactive') return;
     Object.entries(peers).forEach(([id, p]) => {
-      if (p.stream && !trackRecordersRef.current[id]) {
-        const rec = createTrackRecorder(p.stream);
+      if (p.stream && p.stream.getAudioTracks().length > 0 && !trackRecordersRef.current[id]) {
+        const rec = createTrackRecorder(new MediaStream(p.stream.getAudioTracks()));
         rec.start();
         trackRecordersRef.current[id] = { rec, name: p.name || 'Guest', tint: p.tint || 'olive' };
         console.log('[Podstudio] late-joining track added:', id);
@@ -323,8 +375,17 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     { k: 'terrace',   l: 'Terrace',    sub: 'outdoor' },
   ];
 
+  // Hidden layer that plays every remote peer's audio (and keeps meters fed)
+  const remoteAudioLayer = (
+    <div style={{ display: 'none' }}>
+      {Object.entries(peers).map(([id, p]) => p.stream ? <RemoteAudio key={id} stream={p.stream} /> : null)}
+    </div>
+  );
+
   if (phase === 'greenRoom') {
     return (
+      <>
+      {remoteAudioLayer}
       <GreenRoom
         guests={liveGuests}
         onStart={() => goToPhase('check')}
@@ -346,7 +407,10 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
         episodeTitle={episodeTitle}
         onSaveTitle={saveTitle}
         isRoomSession={isRoomSession}
+        cameraPref={cameraPref}
+        onToggleCamera={() => setCameraPref(c => !c)}
       />
+      </>
     );
   }
 
@@ -359,6 +423,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
+      {remoteAudioLayer}
       {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
@@ -421,33 +486,8 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
           zIndex: 10,
         }}>
           <PullCordSpec />
-          <div style={{ padding: '0 12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {[
-              { k: 'none',   l: 'Silence' },
-              { k: 'cafe',   l: 'Coffee shop hum' },
-              { k: 'rain',   l: 'Rain on glass' },
-              { k: 'noise',  l: 'Warm noise' },
-            ].map(a => (
-              <button key={a.k}
-                onClick={() => setAmbient(a.k)}
-                className="nav-item"
-                style={{
-                  background: ambient === a.k ? 'var(--brass-tint)' : 'transparent',
-                  color: ambient === a.k ? 'var(--brass-bright)' : 'var(--fg-1)',
-                  fontSize: 12, padding: '6px 10px',
-                }}>
-                {ambient === a.k ? <I.Volume size={11} /> : <div style={{ width: 11 }} />}
-                {a.l}
-              </button>
-            ))}
-          </div>
-          {ambient !== 'none' && (
-            <div style={{ marginTop: 10, padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 10, color: 'var(--fg-3)' }}>Vol</span>
-              <input type="range" defaultValue="30" className="slider" style={{ flex: 1 }} />
-            </div>
-          )}
+          <div style={{ padding: '10px 12px 0', fontSize: 10.5, color: 'var(--fg-3)', lineHeight: 1.5 }}>
+            Scenes set the mood on screen — they never touch your audio.
           </div>
         </aside>
 
@@ -517,6 +557,20 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
 
           {/* Sound-check heading now lives in the top bar so it never fights with the mic or guests */}
 
+          {/* Self camera preview */}
+          {camOn && hasLiveVideo(localStream) && (
+            <div style={{
+              position: 'absolute', right: 24, top: 18, zIndex: 6,
+              width: narrow ? 120 : 168, height: narrow ? 86 : 118,
+              borderRadius: 'var(--r-md)', overflow: 'hidden',
+              border: '1px solid oklch(0.78 0.1 82 / 0.4)',
+              boxShadow: 'var(--sh-md)',
+            }}>
+              <VideoTile stream={localStream} style={{ transform: 'scaleX(-1)' }} />
+              <span style={{ position: 'absolute', left: 8, bottom: 6, fontSize: 10, color: 'oklch(0.95 0 0)', textShadow: '0 1px 3px oklch(0 0 0/0.7)' }}>You</span>
+            </div>
+          )}
+
           {/* Recording waveform banner */}
           {phase === 'record' && (
             <div style={{
@@ -530,9 +584,9 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <Avatar name="Noa Weiss" tint="terracotta" size={24} />
+                  <Avatar name={myName} tint="terracotta" size={24} />
                   <span style={{ fontSize: 12, color: 'oklch(0.95 0 0)', fontWeight: 500 }}>You · live</span>
-                  <span className="mono" style={{ fontSize: 10.5, color: 'oklch(0.72 0 0)' }}>−14 LUFS · 48kHz</span>
+                  <span className="mono" style={{ fontSize: 10.5, color: 'oklch(0.72 0 0)' }}>{inputDb !== null ? `${inputDb} dB` : 'no signal'}</span>
                 </div>
                 <RealWaveform analyserRef={analyserRef} active={!paused && micOn} height={40} />
               </div>
@@ -559,7 +613,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             {phase === 'check' ? (
               <>
                 <ToolbarBtn icon={micOn ? I.Mic : I.MicOff} label={micOn ? 'Mic on' : 'Muted'} active={micOn} onClick={() => setMicOn(!micOn)} danger={!micOn} />
-                <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label={camOn ? 'Camera' : 'Cam off'} active={camOn} onClick={() => setCamOn(!camOn)} danger={!camOn} />
+                <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label={camOn ? 'Camera' : 'Cam off'} active={camOn} onClick={toggleCam} danger={!camOn} />
                 <div style={{ width: 1, height: 26, background: 'oklch(0.78 0.1 82 / 0.2)', margin: '0 4px' }} />
                 <button className="btn btn-rec" onClick={() => goToPhase('countdown')} style={{ padding: '10px 18px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   <span className="rec-dot" style={{ background: 'white', animation: 'none' }} />
@@ -569,9 +623,8 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             ) : (
               <>
                 <ToolbarBtn icon={micOn ? I.Mic : I.MicOff} label={micOn ? 'Mic' : 'Muted'} active={micOn} onClick={() => setMicOn(!micOn)} danger={!micOn} />
-                <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label="Camera" active={camOn} onClick={() => setCamOn(!camOn)} />
-                <ToolbarBtn icon={I.Music} label="Music" active={musicBed} onClick={() => { setMusicBed(!musicBed); openMusic(); }} />
-                <ToolbarBtn icon={I.Sparkle} label="Effects" />
+                <ToolbarBtn icon={camOn ? I.Video : I.VideoOff} label="Camera" active={camOn} onClick={toggleCam} />
+                <ToolbarBtn icon={I.Music} label="Music" onClick={openMusic} />
                 <ToolbarBtn icon={paused ? I.Play : I.Pause} label={paused ? 'Resume' : 'Pause'} onClick={() => setPaused(!paused)} />
                 <div style={{ width: 1, height: 26, background: 'oklch(0.78 0.1 82 / 0.2)', margin: '0 4px' }} />
                 <button className="btn btn-rec" onClick={stopRecording} style={{ padding: '10px 16px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -677,6 +730,11 @@ function GuestSeat({ g, recording, narrow }) {
       transform: `perspective(800px) rotateY(${g.name === 'Maya Chen' ? 4 : -4}deg)`,
     }}>
       {g.status === 'joined' ? (
+        hasLiveVideo(g.stream) ? (
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <VideoTile stream={g.stream} />
+          </div>
+        ) : (
         <div style={{
           position: 'absolute', inset: 0,
           background: `radial-gradient(ellipse at 50% 40%, ${tint} 0%, oklch(0.14 0.02 165) 75%)`,
@@ -684,6 +742,7 @@ function GuestSeat({ g, recording, narrow }) {
         }}>
           <Avatar name={g.name} tint={g.tint} size={56} />
         </div>
+        )
       ) : (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 6, color: 'var(--fg-3)' }}>
           <I.Clock size={18} />
@@ -731,7 +790,7 @@ function QualStat({ label, v }) {
 // ─────────────────────────────────────────────────────────────
 // Green Room — waiting area for guests
 // ─────────────────────────────────────────────────────────────
-function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, connectionStatus, roomId, isHost, pendingPhase, onAcceptPhase, userName, onSaveName, episodeTitle, onSaveTitle, isRoomSession }) {
+function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, connectionStatus, roomId, isHost, pendingPhase, onAcceptPhase, userName, onSaveName, episodeTitle, onSaveTitle, isRoomSession, cameraPref, onToggleCamera }) {
   const isLive = !!chatMessages;
   const messages = chatMessages || [];
   const [draft, setDraft] = React.useState('');
@@ -891,6 +950,24 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
               </button>
             </div>
           )}
+
+          <label style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', width: 'fit-content' }}>
+            <span style={{
+              width: 34, height: 20, borderRadius: 999, position: 'relative', flexShrink: 0,
+              background: cameraPref ? 'var(--brass)' : 'var(--bg-3)',
+              border: '1px solid var(--line-1)', transition: 'background 0.15s',
+            }} onClick={onToggleCamera}>
+              <span style={{
+                position: 'absolute', top: 2, left: cameraPref ? 16 : 2,
+                width: 14, height: 14, borderRadius: '50%', background: 'var(--fg-0)',
+                transition: 'left 0.15s',
+              }} />
+            </span>
+            <span style={{ fontSize: 13, color: 'var(--fg-1)', display: 'flex', alignItems: 'center', gap: 6 }} onClick={onToggleCamera}>
+              <I.Video size={13} style={{ color: cameraPref ? 'var(--brass-bright)' : 'var(--fg-3)' }} />
+              Join with camera {cameraPref ? 'on' : 'off'}
+            </span>
+          </label>
 
           <div style={{ marginTop: narrow ? 26 : 44, display: 'flex', gap: 28, alignItems: 'flex-end' }}>
             <div>

@@ -1,6 +1,6 @@
 // Edit & Export page — post-recording editor
 
-function EditorPage({ openExport, tracks, recording }) {
+function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemoveBed }) {
   // Support both old `recording` (single) and new `tracks` (array)
   const effectiveTracks = React.useMemo(() => {
     if (tracks?.length > 0) return tracks;
@@ -70,6 +70,42 @@ function EditorPage({ openExport, tracks, recording }) {
     else { el.play(); setRecPlaying(true); }
   };
 
+  // Music bed loops quietly under playback when one is selected
+  const bedCtxRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!recPlaying || !musicBed) return;
+    let src = null, cancelled = false;
+    (async () => {
+      const buf = await generateBed(musicBed.kind);
+      if (cancelled) return;
+      if (!bedCtxRef.current) bedCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = bedCtxRef.current;
+      if (ctx.state === 'suspended') await ctx.resume();
+      src = ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      const g = ctx.createGain(); g.gain.value = 0.15;
+      src.connect(g); g.connect(ctx.destination);
+      src.start();
+    })();
+    return () => { cancelled = true; try { src && src.stop(); } catch (_) {} };
+  }, [recPlaying, musicBed]);
+
+  const [mixing, setMixing] = React.useState(false);
+  const exportMix = async () => {
+    if (mixing) return;
+    setMixing(true);
+    try {
+      const blob = await renderMixToWav(effectiveTracks.filter(t => t.blob).map(t => t.blob), musicBed?.kind);
+      if (blob) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const title = (localStorage.getItem('podstudio-episode-title') || 'episode').replace(/[^\w一-鿿-]+/g, '-');
+        a.download = `${title}-mix.wav`;
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    } finally { setMixing(false); }
+  };
+
   const downloadRecording = () => {
     effectiveTracks.forEach((track, i) => {
       if (!track?.blob) return;
@@ -102,25 +138,36 @@ function EditorPage({ openExport, tracks, recording }) {
       }}>
         <span className="caps" style={{ color: 'var(--fg-3)' }}>Editor · Post</span>
         <div style={{ width: 1, height: 18, background: 'var(--line-0)' }} />
-        <div style={{ fontSize: 13, fontWeight: 500 }}>Ep. 47 — The Attention Economy</div>
-        <div className="chip teal">
-          <I.Check size={10} /> Auto-saved 2s ago
-        </div>
+        <div style={{ fontSize: 13, fontWeight: 500 }}>{localStorage.getItem('podstudio-episode-title') || 'Untitled episode'}</div>
         <div className="chip">
-          <span className="mono">{fmtTime(totalSeconds)}</span>
+          <span className="mono">{fmtTime(effectiveTracks.length > 0 ? Math.round(recDuration) : totalSeconds)}</span>
         </div>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost"><I.Wand size={13} /> Quick polish</button>
-        <button className="btn"><I.Share size={13} /> Share preview</button>
-        {effectiveTracks.length > 0 && (
-          <button className="btn" onClick={downloadRecording} title={effectiveTracks.length > 1 ? `Download ${effectiveTracks.length} tracks` : 'Download recording'}>
-            <I.Download size={13} /> {effectiveTracks.length > 1 ? `Download (${effectiveTracks.length})` : 'Download'}
+        <button className="btn" onClick={openMusic}>
+          <I.Music size={13} /> {musicBed ? musicBed.name : 'Add music'}
+        </button>
+        {musicBed && (
+          <button className="btn btn-ghost" onClick={onRemoveBed} title="Remove background music" style={{ padding: '6px 8px' }}>
+            <I.X size={12} />
           </button>
         )}
-        <button className="btn btn-primary" onClick={openExport}>
-          <I.Download size={13} /> Export
-        </button>
+        {effectiveTracks.length > 0 && (
+          <button className="btn" onClick={downloadRecording} title={effectiveTracks.length > 1 ? `Download ${effectiveTracks.length} tracks` : 'Download recording'}>
+            <I.Download size={13} /> {effectiveTracks.length > 1 ? `Tracks (${effectiveTracks.length})` : 'Download'}
+          </button>
+        )}
+        {effectiveTracks.length > 0 && (
+          <button className="btn btn-primary" onClick={exportMix} disabled={mixing}>
+            <I.Download size={13} /> {mixing ? 'Rendering…' : musicBed ? 'Export mix (WAV)' : 'Export (WAV)'}
+          </button>
+        )}
       </div>
+      {musicBed && (
+        <div style={{ padding: '7px 18px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--brass-tint)', fontSize: 11.5, color: 'var(--fg-1)' }}>
+          <I.Music size={11} style={{ color: 'var(--brass-bright)' }} />
+          <span><b>{musicBed.name}</b> plays under your voices — hear it with ▶, it ducks automatically in the export.</span>
+        </div>
+      )}
       {effectiveTracks[0]?.url && <audio ref={audioRef} src={effectiveTracks[0].url} preload="auto" style={{ display: 'none' }} />}
 
       {/* Main area */}
