@@ -35,7 +35,7 @@ function Sidebar({ page, setPage }) {
 
       <button
         className="btn btn-primary"
-        onClick={() => setPage('onboarding')}
+        onClick={() => { localStorage.removeItem('podstudio-episode-title'); setPage('onboarding'); }}
         style={{ width: '100%', justifyContent: 'center', marginBottom: 16 }}
       >
         <I.Plus size={14} />

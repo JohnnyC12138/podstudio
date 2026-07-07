@@ -149,11 +149,12 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
       if (!isHost && meta && typeof meta.title === 'string') setEpisodeTitle(meta.title);
     },
     onTrackReceived: ({ blob, name }) => {
-      // A guest pushed their full-quality local recording after wrap —
-      // it supersedes the WebRTC-compressed copy we recorded on our side
+      // A guest pushed their full-quality local recording after wrap.
+      // It REPLACES the WebRTC-compressed copy we recorded of the same
+      // person — keeping both would double the voice (echo) in the mix.
       const track = { blob, url: URL.createObjectURL(blob), name: `${name} (HD)`, tint: 'blue' };
       setFinishedTracks(prev => {
-        const next = [...prev, track];
+        const next = [...prev.filter(t => t.name !== name && t.name !== track.name), track];
         onRecordingComplete?.(next);
         return next;
       });
