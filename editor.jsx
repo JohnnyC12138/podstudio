@@ -8,13 +8,6 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
     return [];
   }, [tracks, recording]);
 
-  const [playing, setPlaying] = React.useState(false);
-  const [playhead, setPlayhead] = React.useState(0.18);
-  const [selectedClip, setSelectedClip] = React.useState(null);
-  const [aiPanel, setAiPanel] = React.useState('transcript');
-  const [toggles, setToggles] = React.useState({
-    noise: true, filler: true, levels: true, plosive: false, click: false,
-  });
 
   // Real recording playback — uses first (host) track
   const audioRef = React.useRef(null);
@@ -83,7 +76,7 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
       if (ctx.state === 'suspended') await ctx.resume();
       src = ctx.createBufferSource();
       src.buffer = buf; src.loop = true;
-      const g = ctx.createGain(); g.gain.value = 0.15;
+      const g = ctx.createGain(); g.gain.value = 0.5;
       src.connect(g); g.connect(ctx.destination);
       src.start();
     })();
@@ -119,13 +112,40 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
     });
   };
 
-  React.useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => setPlayhead(p => Math.min(1, p + 0.0015)), 50);
-    return () => clearInterval(id);
-  }, [playing]);
+  // Real timeline length — the longest recorded track
+  const totalSeconds = Math.max(
+    recDuration || 0,
+    ...effectiveTracks.map(t => t.duration || 0),
+    1
+  );
+  const [speed, setSpeed] = React.useState(1);
+  const setRate = (r) => { setSpeed(r); if (audioRef.current) audioRef.current.playbackRate = r; };
+  const seekTo = (sec) => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, Math.min(totalSeconds, sec));
+    setRecTime(el.currentTime);
+  };
 
-  const totalSeconds = 2738; // 45:38
+  // No recording yet — honest empty state instead of a demo project
+  if (effectiveTracks.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-0)' }}>
+        <div style={{ textAlign: 'center', maxWidth: 380, padding: 24 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-2)', border: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--brass)' }}>
+            <I.Edit size={24} />
+          </div>
+          <h2 className="display" style={{ fontSize: 28, margin: '0 0 10px', color: 'var(--fg-0)' }}>Nothing to edit yet</h2>
+          <p style={{ fontSize: 13.5, color: 'var(--fg-2)', lineHeight: 1.6, margin: '0 0 22px' }}>
+            Record an episode and it lands here automatically — every speaker on their own track, ready to mix with music and export.
+          </p>
+          <button className="btn btn-primary btn-lg" onClick={() => window.__setPage('studio')}>
+            <I.Mic size={14} /> Go to the studio
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)' }}>
@@ -192,58 +212,13 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
               </div>
             );
           })}
-          {effectiveTracks.length === 0 && [
-            { n: 'Music bed', mute: false, solo: false, color: 'green' },
-            { n: 'Room tone', mute: true, solo: false, color: 'dim' },
-            { n: 'SFX pad', mute: false, solo: false, color: 'purple' },
-          ].map((t, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 6px',
-              borderRadius: 5,
-              marginBottom: 2,
-              cursor: 'pointer',
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <div style={{
-                width: 3, height: 18, borderRadius: 2,
-                background: t.color === 'teal' ? 'var(--teal)' : t.color === 'amber' ? 'var(--amber)' : t.color === 'green' ? 'oklch(0.75 0.14 145)' : t.color === 'purple' ? 'oklch(0.7 0.14 300)' : 'var(--fg-4)',
-              }} />
-              <span style={{ flex: 1, fontSize: 11.5, color: t.mute ? 'var(--fg-3)' : 'var(--fg-0)' }}>{t.n}</span>
-              <button style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: t.mute ? 'oklch(0.85 0.15 25)' : 'var(--fg-3)', padding: '1px 4px', borderRadius: 3, border: '1px solid var(--line-0)' }}>M</button>
-              <button style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: t.solo ? 'var(--amber)' : 'var(--fg-3)', padding: '1px 4px', borderRadius: 3, border: '1px solid var(--line-0)' }}>S</button>
-            </div>
-          ))}
-
-          <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', fontSize: 11.5, marginTop: 8 }}>
-            <I.Plus size={11} /> New track
-          </button>
-
           <div style={{ height: 1, background: 'var(--line-0)', margin: '16px 0 14px' }} />
 
-          <div className="caps" style={{ color: 'var(--fg-3)', padding: '0 6px 8px' }}>Chapters</div>
-          {[
-            { t: '00:00', n: 'Cold open' },
-            { t: '03:12', n: 'Maya intro' },
-            { t: '08:44', n: 'The attention trap' },
-            { t: '21:30', n: 'Reader Q&A', ai: true },
-            { t: '36:02', n: 'Outro' },
-          ].map((c, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '5px 6px',
-              fontSize: 11.5, cursor: 'pointer', borderRadius: 4,
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <span className="mono" style={{ fontSize: 9.5, color: 'var(--fg-3)', width: 40 }}>{c.t}</span>
-              <span style={{ flex: 1, color: 'var(--fg-1)' }}>{c.n}</span>
-              {c.ai && <I.Sparkle size={10} style={{ color: 'var(--teal)' }} />}
-            </div>
-          ))}
+          <div className="caps" style={{ color: 'var(--fg-3)', padding: '0 6px 8px' }}>Session</div>
+          <div style={{ padding: '0 6px', fontSize: 11.5, color: 'var(--fg-2)', lineHeight: 1.7 }}>
+            <div>{effectiveTracks.length} track{effectiveTracks.length > 1 ? 's' : ''} · {fmtTime(totalSeconds)}</div>
+            <div>{musicBed ? `Music: ${musicBed.name}` : 'No background music'}</div>
+          </div>
         </aside>
 
         {/* Center — multitrack timeline */}
@@ -255,33 +230,29 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
             display: 'flex', alignItems: 'center', gap: 12,
             flexShrink: 0,
           }}>
-            <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6 }}>
+            <button className="btn-ghost" title="Back 15s" onClick={() => seekTo(recTime - 15)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6 }}>
               <I.ChevronLeft size={14} />
             </button>
             <button
-              onClick={() => setPlaying(p => {
-                const next = !p;
-                if (audioRef.current) { if (next) audioRef.current.play().catch(() => {}); else audioRef.current.pause(); }
-                return next;
-              })}
+              onClick={toggleRecPlay}
               style={{
                 width: 34, height: 34, borderRadius: 8,
-                background: playing ? 'var(--teal)' : 'var(--bg-2)',
-                color: playing ? 'oklch(0.15 0.02 195)' : 'var(--fg-0)',
-                border: playing ? 'none' : '1px solid var(--line-0)',
+                background: recPlaying ? 'var(--teal)' : 'var(--bg-2)',
+                color: recPlaying ? 'oklch(0.15 0.02 195)' : 'var(--fg-0)',
+                border: recPlaying ? 'none' : '1px solid var(--line-0)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: playing ? '0 0 16px -2px var(--teal-glow)' : 'none',
+                boxShadow: recPlaying ? '0 0 16px -2px var(--teal-glow)' : 'none',
               }}>
-              {playing ? <I.Pause size={14} /> : <I.Play size={13} />}
+              {recPlaying ? <I.Pause size={14} /> : <I.Play size={13} />}
             </button>
-            <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6 }}>
+            <button className="btn-ghost" title="Forward 15s" onClick={() => seekTo(recTime + 15)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6 }}>
               <I.ChevronRight size={14} />
             </button>
 
             <div style={{ width: 1, height: 18, background: 'var(--line-0)' }} />
 
             <span className="mono" style={{ fontSize: 14, color: 'var(--fg-0)', letterSpacing: '0.02em' }}>
-              {fmtTime(playhead * totalSeconds)}
+              {fmtTime(recTime)}
             </span>
             <span className="mono" style={{ fontSize: 11, color: 'var(--fg-3)' }}>
               / {fmtTime(totalSeconds)}
@@ -289,29 +260,14 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
 
             <div style={{ flex: 1 }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--fg-3)' }}>
-              <I.Search size={12} />
-              <input placeholder="Find in transcript…" style={{
-                background: 'var(--bg-2)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 5,
-                padding: '5px 8px',
-                fontSize: 11.5,
-                color: 'var(--fg-0)',
-                width: 180,
-                outline: 'none',
-              }} />
-              <span className="kbd">⌘F</span>
-            </div>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              {['1×', '1.5×', '2×'].map((s, i) => (
-                <button key={i} style={{
+              {[1, 1.5, 2].map(r => (
+                <button key={r} onClick={() => setRate(r)} style={{
                   padding: '4px 7px', borderRadius: 4,
-                  background: i === 0 ? 'var(--bg-3)' : 'transparent',
-                  color: i === 0 ? 'var(--fg-0)' : 'var(--fg-2)',
+                  background: speed === r ? 'var(--bg-3)' : 'transparent',
+                  color: speed === r ? 'var(--fg-0)' : 'var(--fg-2)',
                   fontSize: 10, fontFamily: 'var(--font-mono)',
-                }}>{s}</button>
+                }}>{r}×</button>
               ))}
             </div>
           </div>
@@ -319,10 +275,8 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
           {/* Multitrack canvas */}
           <div style={{ flex: 1, overflow: 'auto', padding: '12px 18px', position: 'relative' }}>
             <EditorTimeline
-              playhead={playhead}
-              setPlayhead={setPlayhead}
-              selectedClip={selectedClip}
-              setSelectedClip={setSelectedClip}
+              playhead={totalSeconds > 0 ? recTime / totalSeconds : 0}
+              setPlayhead={(p) => seekTo(p * totalSeconds)}
               totalSeconds={totalSeconds}
               recordingTracks={effectiveTracks.map((track, i) => ({
                 name: track.name || `Track ${i + 1}`,
@@ -345,82 +299,42 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
           display: 'flex', flexDirection: 'column',
           minHeight: 0,
         }}>
-          <AIPanel panel={aiPanel} setPanel={setAiPanel} toggles={toggles} setToggles={setToggles} playhead={playhead} totalSeconds={totalSeconds} setPlayhead={setPlayhead} />
+          <AIPanel notesKey={'podstudio-notes-' + (localStorage.getItem('podstudio-episode-title') || 'default')} />
         </aside>
       </div>
     </div>
   );
 }
 
-function EditorTimeline({ playhead, setPlayhead, selectedClip, setSelectedClip, totalSeconds, recordingTracks = [] }) {
-  const tracks = [
-    { name: 'Host · Noa', color: 'teal', seed: 11, clips: [
-      { s: 0, e: 0.22 }, { s: 0.25, e: 0.46 }, { s: 0.5, e: 0.62 }, { s: 0.7, e: 0.88 }, { s: 0.92, e: 1 },
-    ]},
-    { name: 'Guest · Maya', color: 'amber', seed: 22, clips: [
-      { s: 0.08, e: 0.28, selected: true }, { s: 0.32, e: 0.48 }, { s: 0.55, e: 0.7 }, { s: 0.78, e: 0.95 },
-    ]},
-    { name: 'Guest · Dominic', color: 'purple', seed: 33, clips: [
-      { s: 0.12, e: 0.22 }, { s: 0.4, e: 0.58 }, { s: 0.68, e: 0.82 },
-    ]},
-    { name: 'Music bed', color: 'green', seed: 44, variant: 'music', clips: [
-      { s: 0, e: 0.08, fade: true }, { s: 0.9, e: 1, fade: true },
-    ]},
-    { name: 'Room tone', color: 'dim', seed: 55, variant: 'noise', clips: [
-      { s: 0, e: 1, muted: true },
-    ]},
-    { name: 'SFX pad', color: 'purple', seed: 66, variant: 'music', clips: [
-      { s: 0.21, e: 0.25 }, { s: 0.61, e: 0.64 },
-    ]},
-  ];
+function EditorTimeline({ playhead, setPlayhead, totalSeconds, recordingTracks = [] }) {
+  // Ruler: pick a tick interval that gives ~8-12 labeled marks
+  const niceSteps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800];
+  const step = niceSteps.find(s => totalSeconds / s <= 10) || 3600;
+  const ticks = [];
+  for (let t = 0; t <= totalSeconds; t += step / 5) ticks.push(t);
 
-  const colorMap = {
-    teal: { main: 'var(--teal)', bg: 'oklch(0.82 0.14 195 / 0.12)', border: 'oklch(0.82 0.14 195 / 0.35)' },
-    amber: { main: 'var(--amber)', bg: 'oklch(0.78 0.15 65 / 0.12)', border: 'oklch(0.78 0.15 65 / 0.35)' },
-    purple: { main: 'oklch(0.72 0.14 300)', bg: 'oklch(0.72 0.14 300 / 0.12)', border: 'oklch(0.72 0.14 300 / 0.35)' },
-    green: { main: 'oklch(0.78 0.14 145)', bg: 'oklch(0.78 0.14 145 / 0.1)', border: 'oklch(0.78 0.14 145 / 0.3)' },
-    dim: { main: 'var(--fg-3)', bg: 'oklch(0.22 0.008 250 / 0.7)', border: 'var(--line-1)' },
+  const seekFromClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setPlayhead?.(frac);
   };
 
   return (
-    <div style={{ position: 'relative', minWidth: 900 }}>
+    <div style={{ position: 'relative', minWidth: 600, cursor: 'pointer' }} onClick={seekFromClick}>
       {/* Ruler */}
-      <div style={{ position: 'relative', height: 20, marginBottom: 6, borderBottom: '1px solid var(--line-0)', marginLeft: 0 }}>
-        {Array.from({ length: 46 }, (_, i) => (
+      <div style={{ position: 'relative', height: 20, marginBottom: 6, borderBottom: '1px solid var(--line-0)' }}>
+        {ticks.map((t, i) => (
           <div key={i} style={{
             position: 'absolute',
-            left: `${(i / 45) * 100}%`, top: 0, bottom: 0,
+            left: `${(t / totalSeconds) * 100}%`, top: 0, bottom: 0,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
           }}>
             <div style={{ width: 1, height: i % 5 === 0 ? 10 : 4, background: 'var(--line-1)' }} />
             {i % 5 === 0 && (
               <span className="mono" style={{ fontSize: 9.5, color: 'var(--fg-3)', marginTop: 2 }}>
-                {fmtTime((i / 45) * totalSeconds)}
+                {fmtTime(t)}
               </span>
             )}
-          </div>
-        ))}
-      </div>
-
-      {/* Chapter markers */}
-      <div style={{ position: 'relative', height: 0 }}>
-        {[
-          { p: 0, n: 'Cold open' },
-          { p: 0.07, n: 'Maya intro' },
-          { p: 0.19, n: 'Attention trap' },
-          { p: 0.47, n: 'Q&A', ai: true },
-          { p: 0.79, n: 'Outro' },
-        ].map((c, i) => (
-          <div key={i} style={{
-            position: 'absolute',
-            left: `${c.p * 100}%`, top: -34, zIndex: 2,
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '2px 6px', borderRadius: 3,
-            background: c.ai ? 'oklch(0.82 0.14 195 / 0.15)' : 'var(--bg-2)',
-            border: c.ai ? '1px solid oklch(0.82 0.14 195 / 0.4)' : '1px solid var(--line-0)',
-          }}>
-            {c.ai && <I.Sparkle size={9} style={{ color: 'var(--teal)' }} />}
-            <span style={{ fontSize: 10, color: c.ai ? 'var(--teal)' : 'var(--fg-1)' }}>{c.n}</span>
           </div>
         ))}
       </div>
@@ -477,327 +391,59 @@ function EditorTimeline({ playhead, setPlayhead, selectedClip, setSelectedClip, 
         );
       })}
 
-      {/* Tracks */}
-      {recordingTracks.length === 0 && tracks.map((t, i) => (
-        <div key={i} style={{
-          display: 'flex', alignItems: 'center',
-          height: 56, marginBottom: 4,
-          background: 'var(--bg-1)',
-          border: '1px solid var(--line-0)',
-          borderRadius: 4,
-          position: 'relative', overflow: 'hidden',
-        }}>
-          {/* clips */}
-          {t.clips.map((c, j) => {
-            const isSel = selectedClip === `${i}-${j}` || c.selected;
-            const cm = colorMap[t.color];
-            return (
-              <div
-                key={j}
-                onClick={() => setSelectedClip(`${i}-${j}`)}
-                style={{
-                  position: 'absolute',
-                  left: `${c.s * 100}%`,
-                  width: `${(c.e - c.s) * 100}%`,
-                  top: 4, bottom: 4,
-                  background: c.muted ? 'repeating-linear-gradient(-45deg, var(--bg-2), var(--bg-2) 4px, var(--bg-1) 4px, var(--bg-1) 8px)' : cm.bg,
-                  border: `1px solid ${isSel ? cm.main : cm.border}`,
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  padding: '4px 6px 2px',
-                  cursor: 'pointer',
-                  boxShadow: isSel ? `0 0 0 1px ${cm.main}, 0 0 12px -2px ${cm.main}` : 'none',
-                  opacity: c.muted ? 0.5 : 1,
-                }}>
-                <div style={{
-                  fontSize: 9, fontFamily: 'var(--font-mono)',
-                  color: cm.main, opacity: 0.85,
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  marginBottom: 2,
-                }}>
-                  {c.fade && <I.Volume size={8} />}
-                  <span>{t.name.split('·')[0].trim()}</span>
-                </div>
-                <div style={{ height: 22, opacity: c.muted ? 0.4 : 1 }}>
-                  <StaticWaveform
-                    height={22}
-                    color={t.color}
-                    density={Math.max(20, Math.floor((c.e - c.s) * 100))}
-                    seed={t.seed + j}
-                    variant={t.variant || 'voice'}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-
-      {/* Selected clip info */}
-      {selectedClip && (
-        <div style={{
-          position: 'absolute', bottom: -42, left: 0, right: 0,
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '6px 10px', background: 'var(--bg-2)',
-          border: '1px solid var(--line-0)', borderRadius: 6,
-          fontSize: 11, color: 'var(--fg-1)',
-        }}>
-          <span className="chip teal">Clip selected</span>
-          <span className="mono" style={{ color: 'var(--fg-2)' }}>03:12 → 08:44  ·  5:32 duration</span>
-          <div style={{ flex: 1 }} />
-          <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px' }}><I.Scissors size={11} /> Split</button>
-          <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px' }}><I.Volume size={11} /> Fade</button>
-          <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 8px' }}><I.Sparkle size={11} /> AI trim silence</button>
-        </div>
-      )}
     </div>
   );
 }
 
-function AIPanel({ panel, setPanel, toggles, setToggles, playhead, totalSeconds, setPlayhead }) {
-  const transcript = [
-    { t: 181, sp: 'Noa', text: 'Welcome back to the show. I\'m here with Maya Chen — author, technologist, and the reason half of you are thinking differently about attention.', color: 'teal' },
-    { t: 202, sp: 'Maya', text: "Thanks Noa. It's great to be here. [laughs] I've been looking forward to this for months.", color: 'amber', ai: 'filler-trimmed' },
-    { t: 218, sp: 'Noa', text: "Let's start with the thing everyone's asking about — what broke in 2022?", color: 'teal' },
-    { t: 231, sp: 'Maya', text: "So the model we built — it assumed people could choose where to look. That assumption fell apart when feeds got faster than reflexes.", color: 'amber', highlight: true },
-    { t: 258, sp: 'Dominic', text: "Which is when you wrote the first draft of the book?", color: 'purple' },
-  ];
+function AIPanel({ notesKey }) {
+  // Real, persistent session notes; AI features are labeled honestly until wired to a backend
+  const [notes, setNotes] = React.useState(() => localStorage.getItem(notesKey) || '');
+  const saveNotes = (v) => { setNotes(v); localStorage.setItem(notesKey, v); };
+  const [copied, setCopied] = React.useState(false);
 
   return (
     <>
       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--line-0)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-          <I.Sparkle size={14} style={{ color: 'var(--teal)' }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Studio AI</span>
-          <div style={{ flex: 1 }} />
-          <span className="mono" style={{ fontSize: 9.5, color: 'var(--fg-3)' }}>v2.8 · claude</span>
+          <I.FileText size={14} style={{ color: 'var(--brass)' }} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Show notes</span>
         </div>
-        <div style={{ fontSize: 11, color: 'var(--fg-2)' }}>Polishing, transcribing, and indexing in the background.</div>
+        <div style={{ fontSize: 11, color: 'var(--fg-2)' }}>Saved on this device as you type.</div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--line-0)', flexShrink: 0 }}>
-        {[
-          { k: 'transcript', l: 'Transcript', i: I.FileText },
-          { k: 'tools', l: 'Cleanup', i: I.Wand },
-          { k: 'clips', l: 'Clips', i: I.Scissors },
-          { k: 'summary', l: 'Notes', i: I.FileText },
-        ].map(t => (
-          <button
-            key={t.k}
-            onClick={() => setPanel(t.k)}
-            style={{
-              flex: 1, padding: '9px 4px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              color: panel === t.k ? 'var(--fg-0)' : 'var(--fg-2)',
-              borderBottom: panel === t.k ? '1px solid var(--teal)' : '1px solid transparent',
-              marginBottom: -1,
-              fontSize: 10,
-            }}
-          >
-            <t.i size={13} />
-            {t.l}
-          </button>
-        ))}
-      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: 14, gap: 12, overflow: 'auto' }}>
+        <textarea
+          value={notes}
+          onChange={e => saveNotes(e.target.value)}
+          placeholder={'Episode notes, timestamps, links...\n\n03:20 - great story about X\n12:45 - cut the tangent'}
+          style={{
+            flex: 1, minHeight: 220, resize: 'none',
+            background: 'var(--bg-inset)', border: '1px solid var(--line-0)',
+            borderRadius: 'var(--r-md)', padding: 12,
+            fontSize: 12.5, lineHeight: 1.6, color: 'var(--fg-0)',
+            fontFamily: 'inherit', outline: 'none',
+          }}
+        />
+        <button className="btn" style={{ alignSelf: 'flex-start', fontSize: 11.5 }} onClick={() => { navigator.clipboard?.writeText(notes).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
+          <I.Copy size={11} /> {copied ? 'Copied' : 'Copy notes'}
+        </button>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '14px' }}>
-        {panel === 'transcript' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <I.Search size={12} style={{ color: 'var(--fg-3)' }} />
-              <input placeholder="Search transcript… e.g. 'attention'" style={{
-                flex: 1,
-                background: 'var(--bg-2)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 5,
-                padding: '5px 8px',
-                fontSize: 11,
-                color: 'var(--fg-0)',
-                outline: 'none',
-              }} />
-            </div>
-
-            {transcript.map((l, i) => (
-              <div key={i} onClick={() => setPlayhead(l.t / totalSeconds)} style={{
-                padding: '8px 10px',
-                borderRadius: 5,
-                background: l.highlight ? 'oklch(0.82 0.14 195 / 0.06)' : 'transparent',
-                border: l.highlight ? '1px solid oklch(0.82 0.14 195 / 0.25)' : '1px solid transparent',
-                cursor: 'pointer',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span className="mono" style={{
-                    fontSize: 9.5,
-                    color: l.color === 'teal' ? 'var(--teal)' : l.color === 'amber' ? 'var(--amber)' : 'oklch(0.72 0.14 300)',
-                    fontWeight: 600,
-                  }}>{l.sp.toUpperCase()}</span>
-                  <span className="mono" style={{ fontSize: 9, color: 'var(--fg-3)' }}>{fmtTime(l.t)}</span>
-                  {l.ai && (
-                    <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--teal)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <I.Sparkle size={8} /> {l.ai}
-                    </span>
-                  )}
-                  {l.highlight && (
-                    <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--amber)' }}>⭐ Pull-quote</span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--fg-1)', lineHeight: 1.5 }}>
-                  {l.text.split('attention').map((part, k, arr) => (
-                    <React.Fragment key={k}>
-                      {part}
-                      {k < arr.length - 1 && <mark style={{ background: 'oklch(0.78 0.15 65 / 0.25)', color: 'var(--amber)', padding: '0 2px', borderRadius: 2 }}>attention</mark>}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            <div style={{
-              padding: '10px 12px',
-              background: 'var(--bg-2)',
-              border: '1px dashed var(--line-0)',
-              borderRadius: 6,
-              fontSize: 11, color: 'var(--fg-2)',
-              textAlign: 'center',
-            }}>
-              Transcript · 12,847 words · 99.2% accuracy
-            </div>
-          </div>
-        )}
-
-        {panel === 'tools' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { k: 'noise', l: 'Background noise removal', d: 'Suppresses HVAC, keyboards, breath.', meter: 0.87 },
-              { k: 'filler', l: 'Filler word trim', d: 'Auto-removes "um", "uh", "like".', meter: 0.62, count: 47 },
-              { k: 'levels', l: 'Level matching', d: 'Normalizes each speaker to −16 LUFS.', meter: 0.93 },
-              { k: 'plosive', l: 'De-plosive', d: 'Smooths harsh P/B pops.', meter: 0.24 },
-              { k: 'click', l: 'Mouth click removal', d: 'Surgical removal of clicks.', meter: 0.18 },
-            ].map(t => (
-              <div key={t.k} style={{
-                padding: '10px 12px',
-                background: 'var(--bg-2)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 6,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-0)', flex: 1 }}>{t.l}</div>
-                  <button
-                    onClick={() => setToggles(s => ({ ...s, [t.k]: !s[t.k] }))}
-                    style={{
-                      width: 28, height: 16, borderRadius: 8,
-                      background: toggles[t.k] ? 'var(--teal)' : 'var(--bg-3)',
-                      position: 'relative',
-                      boxShadow: toggles[t.k] ? '0 0 8px var(--teal-glow)' : 'none',
-                    }}
-                  >
-                    <div style={{
-                      position: 'absolute', top: 2, left: toggles[t.k] ? 14 : 2,
-                      width: 12, height: 12, borderRadius: '50%',
-                      background: 'var(--fg-0)',
-                      transition: 'left 0.18s',
-                    }} />
-                  </button>
-                </div>
-                <div style={{ fontSize: 10.5, color: 'var(--fg-3)', marginBottom: 8 }}>{t.d}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ flex: 1, height: 3, background: 'var(--bg-0)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ width: `${toggles[t.k] ? t.meter * 100 : 0}%`, height: '100%', background: 'var(--teal)', transition: 'width 0.25s', boxShadow: '0 0 6px var(--teal-glow)' }} />
-                  </div>
-                  {t.count && <span className="mono" style={{ fontSize: 9.5, color: 'var(--amber)' }}>−{t.count}</span>}
-                </div>
-              </div>
-            ))}
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
-              <I.Wand size={13} /> Apply to master
-            </button>
-          </div>
-        )}
-
-        {panel === 'clips' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div className="caps" style={{ color: 'var(--fg-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <I.Sparkle size={11} style={{ color: 'var(--teal)' }} /> AI picks · 12 moments
-            </div>
-            {[
-              { t: '09:12', d: '0:38', title: 'The attention trap assumption', score: 94, quote: '"Feeds got faster than reflexes."' },
-              { t: '14:22', d: '0:51', title: 'Breaking point at Meta, 2022', score: 89, quote: '"That\'s when the old model fell."' },
-              { t: '21:30', d: '1:04', title: 'Reader Q&A — the framework', score: 87, quote: '"Start with consent, not clicks."' },
-              { t: '33:08', d: '0:28', title: 'Book closing line', score: 82, quote: '"If the machine learns, so should we."' },
-            ].map((c, i) => (
-              <div key={i} style={{
-                padding: 10,
-                background: 'var(--bg-2)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 6,
-                cursor: 'pointer',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--teal)' }}>{c.t}</span>
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--fg-3)' }}>· {c.d}</span>
-                  <div style={{ flex: 1 }} />
-                  <span className="mono" style={{ fontSize: 9.5, color: c.score > 90 ? 'var(--amber)' : 'var(--fg-2)' }}>
-                    {c.score}/100
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-0)', marginBottom: 4 }}>{c.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--fg-2)', fontStyle: 'italic', marginBottom: 8 }}>{c.quote}</div>
-                <div style={{ height: 18 }}>
-                  <StaticWaveform height={18} color="teal" density={50} seed={i + 77} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {panel === 'summary' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <div className="caps" style={{ color: 'var(--fg-3)', marginBottom: 8 }}>Episode Summary</div>
-              <div style={{
-                padding: 12,
-                background: 'var(--bg-2)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 6,
-                fontSize: 12, color: 'var(--fg-1)', lineHeight: 1.55,
-              }}>
-                Maya Chen joins Noa to unpack what collapsed in her 2022 attention model — why audiences got faster than the feeds designed to hold them — and sketches a consent-first alternative built on slower loops and reader sovereignty.
+        <div style={{ borderTop: '1px solid var(--line-0)', paddingTop: 12 }}>
+          <div className="caps" style={{ color: 'var(--fg-3)', marginBottom: 8 }}>Not wired up yet</div>
+          {[
+            { i: I.FileText, l: 'Transcription', d: 'needs a speech-to-text service' },
+            { i: I.Wand, l: 'AI cleanup (de-noise, filler words)', d: 'needs an audio-processing backend' },
+            { i: I.Scissors, l: 'AI clip picker', d: 'needs transcription first' },
+          ].map((f, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 0', opacity: 0.65 }}>
+              <f.i size={12} style={{ color: 'var(--fg-3)', marginTop: 1, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 11.5, color: 'var(--fg-1)' }}>{f.l}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--fg-3)' }}>{f.d}</div>
               </div>
             </div>
-
-            <div>
-              <div className="caps" style={{ color: 'var(--fg-3)', marginBottom: 8 }}>Topics</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {['attention economy', 'consent design', 'feed velocity', 'Maya\'s book', 'reader Q&A'].map(t => (
-                  <span key={t} className="chip">{t}</span>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="caps" style={{ color: 'var(--fg-3)', marginBottom: 8 }}>Draft post</div>
-              <div style={{
-                padding: 12,
-                background: 'var(--bg-2)',
-                border: '1px solid var(--line-0)',
-                borderRadius: 6,
-                fontSize: 11.5, color: 'var(--fg-1)', lineHeight: 1.55,
-                fontFamily: 'var(--font-mono)',
-                whiteSpace: 'pre-wrap',
-              }}>
-{`Ep 47 is live. Maya Chen on why the
-2022 attention model broke — and
-what a consent-first web sounds like.
-
-→ The feeds-faster-than-reflexes idea
-→ Q&A with readers
-→ A framework for "slower loops"`}
-              </div>
-              <button className="btn btn-ghost" style={{ marginTop: 6, fontSize: 11 }}><I.Copy size={11} /> Copy</button>
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     </>
   );

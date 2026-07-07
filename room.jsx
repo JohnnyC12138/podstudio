@@ -55,7 +55,7 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
   const peerReadyRef = React.useRef(false);
   const dataConnsRef = React.useRef({});
   const localStreamRef = React.useRef(localStream);
-  const callsMadeRef = React.useRef(new Set());
+  const callsMadeRef = React.useRef(new Map());
   const [peers, setPeers] = React.useState({});
   const [connectionStatus, setConnectionStatus] = React.useState('idle');
   const [chatMessages, setChatMessages] = React.useState([]);
@@ -88,8 +88,11 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
   }, []);
 
   const tryCall = React.useCallback((peer, targetId, stream) => {
-    if (!peer || !stream || callsMadeRef.current.has(targetId)) return;
-    callsMadeRef.current.add(targetId);
+    if (!peer || !stream) return;
+    // Re-call the peer whenever OUR stream identity changes (e.g. camera
+    // turned on mid-session) — keyed by stream id, not just target
+    if (callsMadeRef.current.get(targetId) === stream.id) return;
+    callsMadeRef.current.set(targetId, stream.id);
     const call = peer.call(targetId, stream, { metadata: { name: userName } });
     if (!call) return;
     call.on('stream', remoteStream => {
@@ -111,7 +114,7 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
     setConnectionStatus('connecting');
     setChatMessages([]);
     setPeers({});
-    callsMadeRef.current = new Set();
+    callsMadeRef.current = new Map();
 
     // Guest → host connection with retry: the host may not have opened the
     // room yet (or the broker may lag), so keep trying until the channel opens.
@@ -272,12 +275,14 @@ function useRoom({ roomId, isHost, localStream, userName, onPhaseChange, onMetaC
     };
   }, [roomId, isHost, userName]);
 
-  // When localStream becomes available, make the audio call (guest → host)
+  // Call (or re-call) every reachable peer whenever our stream appears or
+  // changes identity — this is how a camera turned on mid-session reaches
+  // the other side. `peers` is a dep so the host calls late joiners too.
   React.useEffect(() => {
-    if (!localStream || !roomId || isHost || !peerReadyRef.current) return;
-    const hostId = `ps-${roomId}-host`;
-    tryCall(peerRef.current, hostId, localStream);
-  }, [localStream, roomId, isHost, tryCall]);
+    if (!localStream || !roomId || !peerReadyRef.current) return;
+    const targets = isHost ? Object.keys(dataConnsRef.current) : [`ps-${roomId}-host`];
+    targets.forEach(id => tryCall(peerRef.current, id, localStream));
+  }, [localStream, roomId, isHost, tryCall, peers]);
 
   const broadcast = React.useCallback((msg) => {
     Object.values(dataConnsRef.current).forEach(conn => { if (conn.open) conn.send(msg); });

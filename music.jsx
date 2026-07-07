@@ -77,6 +77,15 @@ async function generateBed(kind) {
   }
 
   const buf = await ctx.startRendering();
+  // Normalize to RMS 0.1 so downstream gains behave predictably
+  const ch0 = buf.getChannelData(0);
+  let sum = 0, n = 0;
+  for (let i = 0; i < ch0.length; i += 8) { sum += ch0[i] * ch0[i]; n++; }
+  const scale = 0.1 / (Math.sqrt(sum / n) || 1);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < d.length; i++) d[i] *= scale;
+  }
   _bedCache[kind] = buf;
   return buf;
 }
@@ -119,7 +128,7 @@ async function autoMatchBed(blob) {
 }
 
 // ── Export: mix voice tracks + looped bed (with ducking) to WAV ─
-async function renderMixToWav(trackBlobs, bedKind, bedGain = 0.18) {
+async function renderMixToWav(trackBlobs, bedKind, bedGain = 0.6) {
   const AC = window.AudioContext || window.webkitAudioContext;
   const dctx = new AC();
   const voiceBufs = [];
@@ -154,7 +163,7 @@ async function renderMixToWav(trackBlobs, bedKind, bedGain = 0.18) {
       const end = Math.min(w + win, total);
       for (let i = w; i < end; i += 8) rms += out[0][i] * out[0][i];
       rms = Math.sqrt(rms / ((end - w) / 8));
-      const duck = rms > 0.03 ? 0.35 : 1;
+      const duck = rms > 0.03 ? 0.45 : 1;
       const g = bedGain * duck;
       for (let ch = 0; ch < 2; ch++) {
         const bsrc = bed.getChannelData(Math.min(ch, bed.numberOfChannels - 1));

@@ -49,15 +49,9 @@ function LandingPage({ setPage, openInvite }) {
                 <I.Link size={14} /> Invite a guest
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 28, color: 'var(--fg-2)', fontSize: 13 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: -6 }}>
-                {['terracotta', 'olive', 'amber', 'sky'].map((t, i) => (
-                  <div key={i} style={{ marginLeft: i > 0 ? -8 : 0, border: '2px solid var(--bg-0)', borderRadius: '50%' }}>
-                    <Avatar name={'A B'.split(' ')[i % 2] + ' ' + 'C D'.split(' ')[i % 2]} tint={t} size={26} />
-                  </div>
-                ))}
-              </div>
-              <span>Loved by 14,000+ hosts</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 28, color: 'var(--fg-2)', fontSize: 13 }}>
+              <I.Check size={13} style={{ color: 'var(--sage)' }} />
+              <span>Free · no account · records entirely in your browser</span>
             </div>
           </div>
 
@@ -104,9 +98,9 @@ function LandingPage({ setPage, openInvite }) {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 32 }}>
           {[
-            { t: 'One-click setup', d: 'No mixers, no gain. We set levels before you hit record.', i: I.Zap },
-            { t: 'AI polish', d: 'Remove filler words, balance speakers, and de-noise in one pass.', i: I.Wand },
-            { t: 'Publish anywhere', d: 'MP3, WAV, video podcast, or 12 short clips for social.', i: I.Share },
+            { t: 'Guests join by link', d: 'No install, no account — a browser and a mic is all they need.', i: I.Zap },
+            { t: 'Every voice, its own track', d: 'Each speaker records locally. Multi-track lands in the editor automatically.', i: I.Mic },
+            { t: 'Music + one-file export', d: 'On-device background beds that duck under voices, mixed to WAV.', i: I.Music },
           ].map((f, i) => (
             <div key={i} className="card" style={{ padding: 22 }}>
               <div style={{

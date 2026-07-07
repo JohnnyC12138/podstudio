@@ -249,14 +249,30 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     };
   }, []);
 
-  // Camera toggle mutes/unmutes the video track (choice is made in the green room;
-  // mid-call renegotiation isn't supported by the current PeerJS setup)
-  const toggleCam = () => {
-    const vts = streamRef.current?.getVideoTracks() || [];
-    if (vts.length === 0) { setCamOn(false); return; }
-    const next = !camOn;
-    vts.forEach(t => { t.enabled = next; });
-    setCamOn(next);
+  // Camera toggle: on → request the camera now and re-call peers with the
+  // new stream; off → stop the video track entirely (camera light goes off)
+  const toggleCam = async () => {
+    const cur = streamRef.current;
+    const vts = cur?.getVideoTracks() || [];
+    if (camOn && vts.length > 0) {
+      vts.forEach(t => t.stop());
+      const audioOnly = new MediaStream(cur.getAudioTracks());
+      streamRef.current = audioOnly;
+      setLocalStream(audioOnly);
+      setCamOn(false);
+      return;
+    }
+    try {
+      const cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, facingMode: 'user' }, audio: false });
+      const merged = new MediaStream([...(cur?.getAudioTracks() || []), ...cam.getVideoTracks()]);
+      streamRef.current = merged;
+      setLocalStream(merged);
+      setCamOn(true);
+    } catch (err) {
+      setMicError('Camera unavailable or permission denied.');
+      setTimeout(() => setMicError(null), 4000);
+      setCamOn(false);
+    }
   };
 
   // Phase change — host broadcasts to guests
