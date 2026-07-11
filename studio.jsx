@@ -97,7 +97,26 @@ function LiveLevel({ stream, segments = 10 }) {
 
 function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, roomId, isHost = true }) {
   const [phase, setPhase] = React.useState('greenRoom');
-  const [scene, setScene] = React.useState('lateNight');
+  const [scene, setScene] = React.useState(() => localStorage.getItem('podstudio-scene') || 'chicago');
+  const [atmo, setAtmo] = React.useState({ snow: false, autumn: false, fireplace: false });
+  const [sceneFlash, setSceneFlash] = React.useState(null);
+  const changeScene = (k, label) => {
+    setScene(k);
+    localStorage.setItem('podstudio-scene', k);
+    setSceneFlash(label);
+    setTimeout(() => setSceneFlash(null), 1700);
+  };
+  // Entrance ritual: curtains part, camera pushes in on the mic, settles wide
+  const [entrance, setEntrance] = React.useState(false);
+  const entranceDoneRef = React.useRef(false);
+  React.useEffect(() => {
+    if (phase === 'check' && !entranceDoneRef.current) {
+      entranceDoneRef.current = true;
+      setEntrance(true);
+      const t = setTimeout(() => setEntrance(false), 4300);
+      return () => clearTimeout(t);
+    }
+  }, [phase]);
   const [paused, setPaused] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
   const [micOn, setMicOn] = React.useState(true);
@@ -462,11 +481,16 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
   };
 
   const scenes = [
-    { k: 'lateNight', l: 'Late Night', sub: 'wood & lamp' },
-    { k: 'rooftop',   l: 'Rooftop',    sub: 'dusk city' },
-    { k: 'whiteRoom', l: 'White Room', sub: 'minimal' },
-    { k: 'vintage',   l: 'Vintage',    sub: 'radio booth' },
-    { k: 'terrace',   l: 'Terrace',    sub: 'outdoor' },
+    { k: 'chicago',      l: 'Chicago',       sub: 'the loop at dusk' },
+    { k: 'newyork',      l: 'New York',      sub: 'midtown spires' },
+    { k: 'hongkong',     l: 'Hong Kong',     sub: 'harbour lights' },
+    { k: 'losangeles',   l: 'Los Angeles',   sub: 'golden hour' },
+    { k: 'sanfrancisco', l: 'San Francisco', sub: 'fog on the bridge' },
+  ];
+  const atmoOptions = [
+    { k: 'snow',      l: 'Snowfall',  sub: 'outside the glass' },
+    { k: 'autumn',    l: 'Autumn',    sub: 'leaves drifting' },
+    { k: 'fireplace', l: 'Fireplace', sub: 'warm & crackling' },
   ];
 
   // Hidden layer that plays every remote peer's audio (and keeps meters fed)
@@ -579,22 +603,66 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
           padding: '18px 12px',
           zIndex: 10,
         }}>
-          <PullCordSpec />
-          <div style={{ padding: '10px 12px 0', fontSize: 10.5, color: 'var(--fg-3)', lineHeight: 1.5 }}>
-            Scenes set the mood on screen — they never touch your audio.
+          <div className="caps" style={{ padding: '0 10px 8px', color: 'var(--brass)' }}>The view</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {scenes.map(s => (
+              <button key={s.k} onClick={() => changeScene(s.k, s.l)}
+                className="nav-item"
+                style={{
+                  textAlign: 'left', padding: '8px 10px', borderRadius: 8,
+                  background: scene === s.k ? 'var(--brass-tint)' : 'transparent',
+                  border: `1px solid ${scene === s.k ? 'oklch(0.60 0.19 35 / 0.3)' : 'transparent'}`,
+                }}>
+                <div style={{ fontSize: 12.5, fontWeight: scene === s.k ? 600 : 500, color: scene === s.k ? 'var(--brass)' : 'var(--fg-1)' }}>{s.l}</div>
+                <div className="serif-it" style={{ fontSize: 10.5, color: 'var(--fg-3)' }}>{s.sub}</div>
+              </button>
+            ))}
+          </div>
+
+          <div className="caps" style={{ padding: '18px 10px 8px', color: 'var(--brass)' }}>Atmosphere</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {atmoOptions.map(a => (
+              <button key={a.k} onClick={() => setAtmo(p => ({ ...p, [a.k]: !p[a.k] }))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 9, textAlign: 'left', padding: '8px 10px', borderRadius: 8,
+                  background: atmo[a.k] ? 'var(--brass-tint)' : 'transparent',
+                  border: `1px solid ${atmo[a.k] ? 'oklch(0.60 0.19 35 / 0.3)' : 'transparent'}`,
+                }}>
+                <span style={{
+                  width: 28, height: 16, borderRadius: 999, position: 'relative', flexShrink: 0,
+                  background: atmo[a.k] ? 'var(--brass)' : 'var(--bg-3)', transition: 'background 0.15s',
+                }}>
+                  <span style={{ position: 'absolute', top: 2, left: atmo[a.k] ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'oklch(0.97 0.008 88)', transition: 'left 0.15s', boxShadow: 'var(--sh-sm)' }} />
+                </span>
+                <span>
+                  <div style={{ fontSize: 12.5, fontWeight: 500, color: atmo[a.k] ? 'var(--brass)' : 'var(--fg-1)' }}>{a.l}</div>
+                  <div className="serif-it" style={{ fontSize: 10.5, color: 'var(--fg-3)' }}>{a.sub}</div>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ padding: '16px 10px 0', fontSize: 10.5, color: 'var(--fg-3)', lineHeight: 1.5 }}>
+            The view is yours alone — it never touches the audio.
           </div>
         </aside>
 
         {/* Center stage */}
         <div style={{ flex: 1, position: 'relative', minWidth: 0, overflow: 'hidden' }}>
-          <Scene scene={scene} />
+          <div style={{
+            position: 'absolute', inset: 0,
+            animation: entrance ? 'camera-push 4s cubic-bezier(0.45, 0, 0.25, 1) 0.4s both' : 'none',
+            transformOrigin: '50% 72%',
+          }}>
+          <Scene scene={scene} atmo={atmo} />
 
           {/* Pull cord — ceiling hanging cord with vintage bulb */}
           <PullCord
-            sceneName={scenes.find(s => s.k === scene)?.l || 'Late Night'}
+            sceneName={scenes.find(s => s.k === scene)?.l || 'Chicago'}
             onPull={() => {
               const idx = scenes.findIndex(s => s.k === scene);
-              setScene(scenes[(idx + 1) % scenes.length].k);
+              const next = scenes[(idx + 1) % scenes.length];
+              changeScene(next.k, next.l);
             }}
           />
 
@@ -751,6 +819,46 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
                 : "Try recording a 'pickup' phrase now — if you stumble later, you can patch it in without re-recording."}
               onDismiss={dismissCoach}
             />
+          )}
+          </div>{/* end camera wrapper */}
+
+          {/* Scene name flash — the ritual of arriving somewhere new */}
+          {sceneFlash && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 60, pointerEvents: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div className="display" style={{
+                fontSize: 'clamp(40px, 7vw, 92px)', textTransform: 'uppercase',
+                color: 'var(--brass)', opacity: 0.9,
+                textShadow: '0 2px 30px oklch(0.96 0.01 88 / 0.9)',
+                animation: 'scene-flash 1.7s cubic-bezier(0.22, 1, 0.36, 1) both',
+              }}>
+                {sceneFlash}
+              </div>
+            </div>
+          )}
+
+          {/* Entrance curtains — vermillion velvet parting on the room */}
+          {entrance && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 80, pointerEvents: 'none', overflow: 'hidden' }}>
+              {['left', 'right'].map(side => (
+                <div key={side} style={{
+                  position: 'absolute', top: 0, bottom: 0, [side]: 0, width: '52%',
+                  background: `repeating-linear-gradient(90deg,
+                    oklch(0.46 0.16 33) 0 22px, oklch(0.56 0.18 36) 22px 40px, oklch(0.50 0.17 34) 40px 58px)`,
+                  boxShadow: side === 'left' ? '10px 0 34px oklch(0.2 0.05 35 / 0.45)' : '-10px 0 34px oklch(0.2 0.05 35 / 0.45)',
+                  animation: `curtain-${side} 1.4s cubic-bezier(0.55, 0, 0.3, 1) 0.35s both`,
+                }} />
+              ))}
+              {/* Valance across the top */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: 26,
+                background: 'oklch(0.42 0.15 33)',
+                borderBottom: '3px solid oklch(0.34 0.12 32)',
+                animation: 'fade-in 0.3s ease both reverse 3.4s',
+              }} />
+            </div>
           )}
         </div>
 
@@ -923,7 +1031,7 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
   if (isRoomSession && !userName) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
-        <Scene scene="lateNight" />
+        <Scene scene="chicago" />
         <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div className="card" style={{ width: 400, maxWidth: '94vw', padding: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -963,7 +1071,7 @@ function GreenRoom({ guests, onStart, openInvite, chatMessages, onSendChat, conn
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
-      <Scene scene="lateNight" />
+      <Scene scene="chicago" />
       <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'grid', gridTemplateColumns: narrow ? '1fr' : '1.4fr 1fr', gap: narrow ? 22 : 40, padding: narrow ? '26px 18px' : '48px 48px', overflow: 'auto' }}>
         {/* Left — episode info */}
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: narrow ? 'flex-start' : 'center' }}>
@@ -1261,7 +1369,7 @@ function WrapScreen({ elapsed, tracks = [], videos = [], episodeTitle, isHost })
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-0)', position: 'relative' }}>
-      <Scene scene="lateNight" />
+      <Scene scene="chicago" />
       <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflow: 'auto' }}>
         <div className="fade-in" style={{ maxWidth: 640, width: '100%', textAlign: 'center' }}>
           <div className="caps" style={{ color: 'var(--brass)', marginBottom: 14 }}>Session complete</div>

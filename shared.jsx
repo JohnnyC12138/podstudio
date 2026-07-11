@@ -222,73 +222,246 @@ function StepIndicator({ current }) {
 // ─────────────────────────────────────────────────────────────
 // Scene — cinematic background environments (painted with CSS)
 // ─────────────────────────────────────────────────────────────
-function Scene({ scene = 'lateNight', size = 'full' }) {
-  // Paper stages — every scene is ink and one voice of vermillion on bone paper
-  const INK = 'oklch(0.30 0.025 55)';
-  const VERM = 'oklch(0.60 0.19 35)';
-  const defs = {
-    lateNight: { tone: 'oklch(0.955 0.012 88)', motif: 'lamp' },
-    rooftop:   { tone: 'oklch(0.948 0.014 80)', motif: 'skyline' },
-    whiteRoom: { tone: 'oklch(0.975 0.006 90)', motif: 'blank' },
-    vintage:   { tone: 'oklch(0.945 0.016 75)', motif: 'halftone' },
-    terrace:   { tone: 'oklch(0.952 0.014 95)', motif: 'meadow' },
+function Scene({ scene = 'chicago', atmo = {} }) {
+  // A paper room with one enormous window — outside, a real city at dusk.
+  // The room is a letter; the world outside is alive.
+  const CITIES = {
+    chicago:      { name: 'Chicago',       sky: ['oklch(0.38 0.08 265)', 'oklch(0.62 0.12 50)', 'oklch(0.55 0.15 35)'], water: true,  moon: false },
+    newyork:      { name: 'New York',      sky: ['oklch(0.30 0.06 280)', 'oklch(0.45 0.10 320)', 'oklch(0.62 0.13 45)'], water: false, moon: true },
+    hongkong:     { name: 'Hong Kong',     sky: ['oklch(0.26 0.07 290)', 'oklch(0.42 0.12 335)', 'oklch(0.50 0.15 15)'], water: true,  moon: true },
+    losangeles:   { name: 'Los Angeles',   sky: ['oklch(0.55 0.09 260)', 'oklch(0.74 0.12 60)',  'oklch(0.66 0.16 40)'], water: false, moon: false },
+    sanfrancisco: { name: 'San Francisco', sky: ['oklch(0.50 0.06 250)', 'oklch(0.72 0.08 70)',  'oklch(0.63 0.10 50)'], water: true,  moon: false },
   };
-  const s = defs[scene] || defs.lateNight;
-  return (
-    <div style={{ position: 'absolute', inset: 0, background: s.tone, overflow: 'hidden' }}>
-      {/* Ruled paper texture — faint horizontal guides */}
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.5,
-        background: 'repeating-linear-gradient(to bottom, transparent 0 46px, oklch(0.86 0.014 80 / 0.55) 46px 47px)' }} />
-      {/* Margin rule, like a notebook */}
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 64, width: 1, background: 'oklch(0.60 0.19 35 / 0.18)' }} />
+  const c = CITIES[scene] || CITIES.chicago;
+  const INKB = 'oklch(0.22 0.04 270)';   // building ink
+  const INKB2 = 'oklch(0.30 0.05 268)';  // nearer building ink
+  const LIT = 'oklch(0.85 0.12 75)';     // lit window amber
 
-      {s.motif === 'lamp' && (
-        <>
-          <div style={{ position: 'absolute', right: '14%', top: '8%', width: 300, height: 300,
-            background: 'radial-gradient(circle, oklch(0.88 0.07 70 / 0.55), transparent 68%)', filter: 'blur(18px)' }} />
-          <svg viewBox="0 0 200 160" style={{ position: 'absolute', right: '16%', top: '6%', width: 130, opacity: 0.85 }}>
-            <g stroke={INK} strokeWidth="1.6" fill="none" strokeLinecap="round">
-              <line x1="100" y1="0" x2="100" y2="42" />
-              <path d="M78 42 h44 l-8 26 h-28 Z" fill="oklch(0.985 0.006 90)" />
-              <path d="M86 74 a14 10 0 0 0 28 0" fill="oklch(0.72 0.13 75 / 0.5)" stroke="none" />
+  // Deterministic lit windows inside a building rect
+  const Windows = ({ x, y, w, h, seed = 1, step = 7 }) => {
+    const dots = [];
+    let k = seed;
+    for (let wy = y + 4; wy < y + h - 3; wy += step) {
+      for (let wx = x + 3; wx < x + w - 3; wx += step) {
+        k = (k * 1103515245 + 12345) % 2147483648;
+        if (k % 5 < 2) dots.push(<rect key={`${wx}-${wy}`} x={wx} y={wy} width="2" height="2.6" fill={LIT} opacity={0.55 + (k % 40) / 100} />);
+      }
+    }
+    return <g>{dots}</g>;
+  };
+
+  // City skylines — landmark silhouettes, drawn in ink against the dusk
+  const skylines = {
+    chicago: (
+      <g>
+        {/* Willis Tower */}
+        <rect x="330" y="60" width="44" height="180" fill={INKB} /><rect x="338" y="40" width="28" height="24" fill={INKB} />
+        <line x1="342" y1="12" x2="342" y2="40" stroke={INKB} strokeWidth="2.5" /><line x1="362" y1="4" x2="362" y2="40" stroke={INKB} strokeWidth="2.5" />
+        <Windows x={330} y={62} w={44} h={176} seed={7} />
+        {/* Hancock — tapered with X bracing */}
+        <path d="M470 240 L478 70 L512 70 L520 240 Z" fill={INKB} />
+        <line x1="494" y1="46" x2="494" y2="70" stroke={INKB} strokeWidth="2.5" /><line x1="504" y1="52" x2="504" y2="70" stroke={INKB} strokeWidth="2" />
+        <g stroke="oklch(0.40 0.05 268)" strokeWidth="1.2" opacity="0.8">
+          <line x1="480" y1="90" x2="512" y2="130" /><line x1="512" y1="90" x2="480" y2="130" />
+          <line x1="480" y1="130" x2="512" y2="170" /><line x1="512" y1="130" x2="480" y2="170" />
+          <line x1="481" y1="170" x2="513" y2="210" /><line x1="513" y1="170" x2="481" y2="210" />
+        </g>
+        <Windows x={478} y={74} w={36} h={162} seed={13} step={8} />
+        <rect x="180" y="130" width="52" height="110" fill={INKB2} /><Windows x={180} y={132} w={52} h={106} seed={3} />
+        <rect x="252" y="150" width="40" height="90" fill={INKB} /><Windows x={252} y={152} w={40} h={86} seed={9} />
+        <rect x="396" y="120" width="46" height="120" fill={INKB2} /><Windows x={396} y={122} w={46} h={116} seed={5} />
+        <rect x="120" y="168" width="44" height="72" fill={INKB} /><Windows x={120} y={170} w={44} h={68} seed={11} />
+        <rect x="552" y="140" width="50" height="100" fill={INKB2} /><Windows x={552} y={142} w={50} h={96} seed={17} />
+        <rect x="622" y="170" width="40" height="70" fill={INKB} /><Windows x={622} y={172} w={40} h={66} seed={19} />
+      </g>
+    ),
+    newyork: (
+      <g>
+        {/* Empire State — setbacks + spire */}
+        <rect x="300" y="150" width="70" height="90" fill={INKB} /><rect x="312" y="110" width="46" height="42" fill={INKB} /><rect x="322" y="72" width="26" height="40" fill={INKB} />
+        <line x1="335" y1="34" x2="335" y2="72" stroke={INKB} strokeWidth="3" /><circle cx="335" cy="32" r="2" fill={LIT} />
+        <Windows x={302} y={152} w={66} h={86} seed={21} /><Windows x={314} y={112} w={42} h={38} seed={23} step={6} />
+        {/* Chrysler — crown arcs */}
+        <rect x="440" y="130" width="46" height="110" fill={INKB2} />
+        <path d="M440 130 Q463 92 486 130 Z" fill={INKB2} /><path d="M448 124 Q463 98 478 124 Z" fill="oklch(0.42 0.06 268)" />
+        <line x1="463" y1="66" x2="463" y2="98" stroke={INKB2} strokeWidth="2.5" />
+        <Windows x={442} y={134} w={42} h={104} seed={27} step={6} />
+        {/* One WTC */}
+        <path d="M150 240 L156 96 L196 96 L202 240 Z" fill={INKB} /><line x1="176" y1="56" x2="176" y2="96" stroke={INKB} strokeWidth="2.5" />
+        <Windows x={158} y={100} w={38} h={136} seed={31} step={8} />
+        <rect x="240" y="170" width="42" height="70" fill={INKB2} /><Windows x={240} y={172} w={42} h={66} seed={33} />
+        <rect x="516" y="158" width="48" height="82" fill={INKB} /><Windows x={516} y={160} w={48} h={78} seed={37} />
+        <rect x="590" y="140" width="38" height="100" fill={INKB2} /><Windows x={590} y={142} w={38} h={96} seed={39} />
+        <rect x="100" y="186" width="36" height="54" fill={INKB2} /><Windows x={100} y={188} w={36} h={50} seed={41} />
+      </g>
+    ),
+    hongkong: (
+      <g>
+        {/* Victoria Peak behind */}
+        <path d="M60 240 Q 200 120 360 190 Q 520 118 720 200 L720 240 Z" fill="oklch(0.28 0.05 280)" opacity="0.55" />
+        {/* IFC — tall with crown */}
+        <rect x="300" y="70" width="52" height="170" fill={INKB} />
+        <path d="M300 70 L306 52 L346 52 L352 70 Z" fill={INKB} />
+        <g stroke={INKB} strokeWidth="2">{[308,318,328,338,344].map((x,i)=><line key={i} x1={x} y1="38" x2={x} y2="52" />)}</g>
+        <Windows x={302} y={74} w={48} h={164} seed={43} step={6} />
+        {/* Bank of China — diagonals */}
+        <path d="M440 240 L440 120 L472 84 L504 120 L504 240 Z" fill={INKB2} />
+        <line x1="472" y1="56" x2="472" y2="84" stroke={INKB2} strokeWidth="2.5" /><line x1="482" y1="64" x2="482" y2="90" stroke={INKB2} strokeWidth="2" />
+        <g stroke="oklch(0.46 0.06 268)" strokeWidth="1.3" opacity="0.9">
+          <line x1="440" y1="150" x2="504" y2="200" /><line x1="504" y1="150" x2="440" y2="200" />
+          <line x1="440" y1="120" x2="504" y2="120" /><line x1="440" y1="200" x2="504" y2="150" />
+        </g>
+        <Windows x={444} y={124} w={56} h={112} seed={47} step={8} />
+        <rect x="170" y="140" width="48" height="100" fill={INKB} /><Windows x={170} y={142} w={48} h={96} seed={49} step={6} />
+        <rect x="560" y="128" width="44" height="112" fill={INKB} /><Windows x={560} y={130} w={44} h={108} seed={53} step={6} />
+        <rect x="240" y="164" width="38" height="76" fill={INKB2} /><Windows x={240} y={166} w={38} h={72} seed={57} step={6} />
+        <rect x="628" y="156" width="40" height="84" fill={INKB2} /><Windows x={628} y={158} w={40} h={80} seed={59} step={6} />
+      </g>
+    ),
+    losangeles: (
+      <g>
+        {/* Low sun, big and golden */}
+        <circle cx="560" cy="150" r="46" fill="oklch(0.88 0.13 65)" opacity="0.95" />
+        <circle cx="560" cy="150" r="70" fill="oklch(0.85 0.13 60)" opacity="0.25" />
+        {/* US Bank tower — rounded crown */}
+        <rect x="300" y="100" width="44" height="140" fill={INKB} /><path d="M300 100 Q322 84 344 100 Z" fill={INKB} />
+        <Windows x={302} y={102} w={40} h={136} seed={61} step={7} />
+        <rect x="370" y="140" width="40" height="100" fill={INKB2} /><Windows x={370} y={142} w={40} h={96} seed={63} />
+        <rect x="250" y="156" width="36" height="84" fill={INKB2} /><Windows x={250} y={158} w={36} h={80} seed={67} />
+        <path d="M430 240 L436 150 L462 150 L468 240 Z" fill={INKB} /><Windows x={438} y={154} w={24} h={82} seed={69} step={6} />
+        {/* Hills */}
+        <path d="M0 240 Q 120 190 260 226 L 0 240 Z" fill="oklch(0.30 0.05 90)" opacity="0.7" />
+        {/* Palms */}
+        {[120, 170, 660].map((px, i) => (
+          <g key={i}>
+            <path d={`M${px} 240 Q ${px + 3} 200 ${px + 1} 186`} stroke="oklch(0.24 0.04 90)" strokeWidth="3" fill="none" />
+            <g stroke="oklch(0.30 0.06 130)" strokeWidth="2" fill="none">
+              <path d={`M${px + 1} 186 q -16 -8 -26 2`} /><path d={`M${px + 1} 186 q 16 -8 26 2`} />
+              <path d={`M${px + 1} 186 q -10 -14 -20 -12`} /><path d={`M${px + 1} 186 q 10 -14 20 -12`} />
+              <path d={`M${px + 1} 186 q 2 -16 0 -18`} />
             </g>
-          </svg>
-        </>
-      )}
-      {s.motif === 'skyline' && (
+          </g>
+        ))}
+      </g>
+    ),
+    sanfrancisco: (
+      <g>
+        {/* Fog band */}
+        <rect x="0" y="150" width="720" height="34" fill="oklch(0.88 0.015 80)" opacity="0.5" style={{ filter: 'blur(6px)' }} />
+        {/* Transamerica pyramid */}
+        <path d="M330 240 L362 70 L394 240 Z" fill={INKB} /><line x1="362" y1="44" x2="362" y2="70" stroke={INKB} strokeWidth="2.5" />
+        <g fill={LIT} opacity="0.8">{[110,130,150,170,190,210].map((y,i)=><rect key={i} x={362-(y-70)/7} y={y} width={((y-70)/7)*2} height="2" opacity="0.35" />)}</g>
+        {/* Golden Gate towers */}
+        <g stroke="oklch(0.52 0.14 30)" strokeWidth="4" fill="none">
+          <line x1="520" y1="240" x2="520" y2="120" /><line x1="640" y1="240" x2="640" y2="120" />
+          <line x1="504" y1="138" x2="656" y2="138" /><line x1="504" y1="168" x2="656" y2="168" />
+        </g>
+        <path d="M460 200 Q 520 118 580 178 Q 640 118 700 196" stroke="oklch(0.52 0.14 30)" strokeWidth="2" fill="none" />
+        <g stroke="oklch(0.52 0.14 30)" strokeWidth="1" opacity="0.8">
+          {[535,550,565,595,610,625].map((x,i)=><line key={i} x1={x} y1={x<580?140+(x-520)*0.5:140+(640-x)*0.5} x2={x} y2="196" />)}
+        </g>
+        <rect x="150" y="140" width="42" height="100" fill={INKB2} /><Windows x={150} y={142} w={42} h={96} seed={71} step={6} />
+        <rect x="220" y="168" width="36" height="72" fill={INKB} /><Windows x={220} y={170} w={36} h={68} seed={73} step={6} />
+        <path d="M96 240 L104 176 L116 176 L124 240 Z" fill={INKB2} />
+      </g>
+    ),
+  };
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'oklch(0.955 0.012 88)', overflow: 'hidden' }}>
+      {/* Paper wall — faint ruled lines + margin rule */}
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.45,
+        background: 'repeating-linear-gradient(to bottom, transparent 0 46px, oklch(0.86 0.014 80 / 0.55) 46px 47px)' }} />
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 64, width: 1, background: 'oklch(0.60 0.19 35 / 0.16)' }} />
+
+      {/* The window — dusk pouring in */}
+      <div style={{
+        position: 'absolute', left: '50%', top: '6%', transform: 'translateX(-50%)',
+        width: 'min(72%, 860px)', height: '58%',
+        borderRadius: 18,
+        border: '10px solid oklch(0.88 0.016 80)',
+        outline: '1px solid oklch(0.78 0.02 76)',
+        boxShadow: '0 30px 60px -30px oklch(0.3 0.04 60 / 0.4), inset 0 0 0 1px oklch(0.75 0.02 75)',
+        overflow: 'hidden',
+        background: `linear-gradient(to bottom, ${c.sky[0]} 0%, ${c.sky[1]} 62%, ${c.sky[2]} 100%)`,
+      }}>
+        {/* Stars */}
+        {Array.from({ length: 14 }).map((_, i) => (
+          <div key={'s' + i} style={{ position: 'absolute', left: `${(i * 41 + 13) % 96 + 2}%`, top: `${(i * 17) % 34 + 3}%`,
+            width: 1.6, height: 1.6, borderRadius: '50%', background: 'oklch(0.95 0.02 85)',
+            animation: `sc-twinkle ${2.4 + (i % 5) * 0.8}s ease-in-out ${i * 0.5}s infinite` }} />
+        ))}
+        {c.moon && (
+          <div style={{ position: 'absolute', right: '14%', top: '10%', width: 44, height: 44, borderRadius: '50%',
+            background: 'oklch(0.93 0.03 90)', boxShadow: '0 0 24px oklch(0.93 0.03 90 / 0.5), inset -9px -6px 0 oklch(0.82 0.04 85)' }} />
+        )}
+
+        {/* Skyline */}
+        <svg viewBox="0 0 720 240" preserveAspectRatio="xMidYMax slice" style={{ position: 'absolute', left: 0, right: 0, bottom: c.water ? '12%' : 0, width: '100%', height: '78%' }}>
+          {skylines[scene] || skylines.chicago}
+        </svg>
+
+        {/* Water with shimmering reflections */}
+        {c.water && (
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '12%', background: `linear-gradient(to bottom, oklch(0.30 0.05 260), oklch(0.22 0.04 265))` }}>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} style={{ position: 'absolute', left: `${(i * 29 + 8) % 88 + 4}%`, top: `${(i * 23) % 70 + 10}%`,
+                width: 18 + (i % 3) * 10, height: 1.6, background: LIT, opacity: 0.5,
+                animation: `window-shimmer ${2 + (i % 4) * 0.7}s ease-in-out ${i * 0.3}s infinite` }} />
+            ))}
+          </div>
+        )}
+
+        {/* Weather — outside the glass */}
+        {atmo.snow && Array.from({ length: 26 }).map((_, i) => (
+          <div key={'sn' + i} style={{ position: 'absolute', left: `${(i * 37 + 5) % 98}%`, top: '-4%',
+            width: i % 3 === 0 ? 4 : 2.6, height: i % 3 === 0 ? 4 : 2.6, borderRadius: '50%',
+            background: 'oklch(0.97 0.005 90)', opacity: 0.9, '--sway': `${(i % 5) * 8 - 16}px`,
+            animation: `snow-fall ${4.5 + (i % 6) * 1.3}s linear ${(i * 0.53) % 5}s infinite` }} />
+        ))}
+        {atmo.autumn && Array.from({ length: 14 }).map((_, i) => (
+          <div key={'lf' + i} style={{ position: 'absolute', left: `${(i * 53 + 9) % 94}%`, top: '-5%',
+            width: 8, height: 5.5, borderRadius: '60% 0 60% 0',
+            background: ['oklch(0.62 0.15 45)', 'oklch(0.70 0.14 70)', 'oklch(0.55 0.15 35)'][i % 3],
+            '--sway': `${(i % 4) * 18 - 36}px`, '--spin': `${180 + (i % 5) * 90}deg`,
+            animation: `leaf-fall ${5 + (i % 5) * 1.4}s ease-in ${(i * 0.71) % 6}s infinite` }} />
+        ))}
+
+        {/* Glass reflection */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'linear-gradient(112deg, transparent 42%, oklch(1 0 0 / 0.10) 46%, oklch(1 0 0 / 0.04) 55%, transparent 60%)' }} />
+      </div>
+      {/* Window sill */}
+      <div style={{ position: 'absolute', left: '50%', top: 'calc(6% + 58%)', transform: 'translateX(-50%)',
+        width: 'min(76%, 900px)', height: 12, background: 'oklch(0.90 0.015 80)', borderRadius: 3,
+        boxShadow: '0 8px 16px -8px oklch(0.3 0.04 60 / 0.35)' }} />
+
+      {/* Fireplace — inside the room, lower left */}
+      {atmo.fireplace && (
         <>
-          <div style={{ position: 'absolute', left: '12%', top: '16%', width: 110, height: 110, borderRadius: '50%',
-            background: VERM, opacity: 0.85 }} />
-          <svg viewBox="0 0 800 140" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: '18%', width: '100%', height: 120 }}>
-            <path d="M0 120 L60 120 L60 70 L120 70 L120 100 L180 100 L180 40 L250 40 L250 90 L330 90 L330 60 L400 60 L400 110 L470 110 L470 30 L540 30 L540 80 L620 80 L620 55 L700 55 L700 95 L800 95"
-              fill="none" stroke={INK} strokeWidth="1.6" opacity="0.7" />
-          </svg>
-        </>
-      )}
-      {s.motif === 'halftone' && (
-        <>
-          <div style={{ position: 'absolute', right: '10%', top: '12%', width: 260, height: 260, borderRadius: '50%', opacity: 0.5,
-            background: `radial-gradient(circle, ${VERM} 1.4px, transparent 1.6px)`, backgroundSize: '14px 14px',
-            WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 70%)', maskImage: 'radial-gradient(circle, black 40%, transparent 70%)' }} />
-          <div style={{ position: 'absolute', inset: 26, border: '1px solid oklch(0.30 0.025 55 / 0.25)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', inset: 32, border: '1px solid oklch(0.30 0.025 55 / 0.15)', pointerEvents: 'none' }} />
-        </>
-      )}
-      {s.motif === 'meadow' && (
-        <>
-          <svg viewBox="0 0 800 160" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: '14%', width: '100%', height: 140 }}>
-            <path d="M0 110 Q 160 70 340 104 T 800 92" fill="none" stroke={INK} strokeWidth="1.6" opacity="0.65" />
-            <path d="M0 140 Q 220 108 460 136 T 800 126" fill="none" stroke={INK} strokeWidth="1.2" opacity="0.4" />
-          </svg>
-          <svg viewBox="0 0 800 90" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, width: '100%', height: 80 }}>
-            <path d="M-10 12 Q 400 78 810 26" fill="none" stroke={INK} strokeWidth="1.3" opacity="0.55" />
-            {[90, 210, 330, 450, 570, 690].map((x, i) => {
-              const y = 12 + Math.sin((x / 810) * Math.PI) * 60;
-              return <circle key={i} cx={x} cy={y + 9} r="4.5" fill={i % 3 === 1 ? VERM : 'oklch(0.72 0.13 75)'} opacity="0.9">
-                <animate attributeName="opacity" values="0.9;0.45;0.9" dur={`${2.8 + i * 0.5}s`} repeatCount="indefinite" />
-              </circle>;
-            })}
-          </svg>
+          <div style={{ position: 'absolute', left: '4%', bottom: '14%', width: 150, height: 130 }}>
+            <svg viewBox="0 0 150 130" width="150" height="130">
+              <rect x="10" y="10" width="130" height="112" rx="6" fill="oklch(0.90 0.02 70)" stroke="oklch(0.72 0.03 65)" strokeWidth="2" />
+              <rect x="0" y="0" width="150" height="14" rx="4" fill="oklch(0.86 0.02 68)" stroke="oklch(0.72 0.03 65)" strokeWidth="1.5" />
+              <path d="M32 118 L32 62 Q 75 30 118 62 L118 118 Z" fill="oklch(0.16 0.02 40)" />
+              <ellipse cx="75" cy="112" rx="34" ry="7" fill="oklch(0.24 0.04 40)" />
+              <rect x="48" y="104" width="54" height="7" rx="3.5" fill="oklch(0.34 0.06 55)" transform="rotate(-4 75 107)" />
+              <rect x="50" y="108" width="50" height="7" rx="3.5" fill="oklch(0.28 0.05 50)" transform="rotate(5 75 111)" />
+            </svg>
+            {/* Flames */}
+            {[{ x: 62, s: 1, d: 0 }, { x: 75, s: 1.35, d: 0.25 }, { x: 88, s: 0.85, d: 0.5 }].map((f, i) => (
+              <div key={i} style={{ position: 'absolute', left: f.x - 8, bottom: 24, width: 16, height: 34 * f.s,
+                borderRadius: '50% 50% 42% 42% / 68% 68% 32% 32%',
+                background: 'linear-gradient(to top, oklch(0.62 0.19 35), oklch(0.78 0.16 65) 55%, oklch(0.88 0.12 85))',
+                transformOrigin: 'bottom center',
+                animation: `flame-dance ${0.9 + i * 0.22}s ease-in-out ${f.d}s infinite`,
+                filter: 'blur(0.4px)' }} />
+            ))}
+          </div>
+          {/* Warm light spilling into the room */}
+          <div style={{ position: 'absolute', left: '-6%', bottom: '0%', width: '46%', height: '58%', pointerEvents: 'none',
+            background: 'radial-gradient(ellipse at 22% 78%, oklch(0.78 0.13 60 / 0.30), transparent 65%)',
+            animation: 'hearth-glow 2.6s ease-in-out infinite' }} />
         </>
       )}
 
@@ -386,47 +559,99 @@ function MicSvg({ active = true }) {
   return (
     <svg viewBox="0 0 200 280" width="100%" height="100%">
       <defs>
+        {/* Brushed brass with a specular sweep */}
         <linearGradient id="brass-g" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="oklch(0.86 0.11 82)" />
-          <stop offset="45%" stopColor="oklch(0.68 0.09 82)" />
-          <stop offset="100%" stopColor="oklch(0.38 0.05 82)" />
+          <stop offset="0%" stopColor="oklch(0.90 0.10 84)" />
+          <stop offset="30%" stopColor="oklch(0.76 0.10 80)" />
+          <stop offset="55%" stopColor="oklch(0.58 0.08 78)" />
+          <stop offset="80%" stopColor="oklch(0.42 0.06 76)" />
+          <stop offset="100%" stopColor="oklch(0.34 0.05 75)" />
         </linearGradient>
         <linearGradient id="brass-hi" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(0.32 0.03 82)" />
-          <stop offset="40%" stopColor="oklch(0.92 0.1 82)" />
-          <stop offset="60%" stopColor="oklch(0.78 0.1 82)" />
-          <stop offset="100%" stopColor="oklch(0.35 0.04 82)" />
+          <stop offset="0%" stopColor="oklch(0.30 0.03 80)" />
+          <stop offset="35%" stopColor="oklch(0.95 0.09 85)" />
+          <stop offset="52%" stopColor="oklch(0.82 0.10 82)" />
+          <stop offset="75%" stopColor="oklch(0.52 0.06 78)" />
+          <stop offset="100%" stopColor="oklch(0.33 0.04 78)" />
         </linearGradient>
         <linearGradient id="mic-body" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(0.18 0.02 80)" />
-          <stop offset="50%" stopColor="oklch(0.32 0.03 80)" />
-          <stop offset="100%" stopColor="oklch(0.14 0.02 80)" />
+          <stop offset="0%" stopColor="oklch(0.16 0.02 75)" />
+          <stop offset="30%" stopColor="oklch(0.38 0.04 78)" />
+          <stop offset="50%" stopColor="oklch(0.30 0.03 78)" />
+          <stop offset="100%" stopColor="oklch(0.12 0.015 75)" />
         </linearGradient>
-        <radialGradient id="grille-g" cx="0.5" cy="0.4" r="0.6">
-          <stop offset="0%" stopColor="oklch(0.55 0.08 82)" />
-          <stop offset="100%" stopColor="oklch(0.22 0.04 82)" />
+        <radialGradient id="grille-g" cx="0.38" cy="0.30" r="0.85">
+          <stop offset="0%" stopColor="oklch(0.50 0.06 80)" />
+          <stop offset="55%" stopColor="oklch(0.30 0.04 78)" />
+          <stop offset="100%" stopColor="oklch(0.16 0.03 76)" />
         </radialGradient>
+        <radialGradient id="grille-spec" cx="0.34" cy="0.24" r="0.5">
+          <stop offset="0%" stopColor="oklch(0.95 0.05 90 / 0.5)" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+        <pattern id="mic-mesh" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse">
+          <circle cx="1.2" cy="1.2" r="0.85" fill="oklch(0.10 0.015 75)" />
+          <circle cx="3.7" cy="3.7" r="0.85" fill="oklch(0.10 0.015 75)" />
+          <circle cx="1.0" cy="1.0" r="0.35" fill="oklch(0.62 0.07 82)" />
+          <circle cx="3.5" cy="3.5" r="0.35" fill="oklch(0.55 0.06 80)" />
+        </pattern>
+        <linearGradient id="stand-g" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="oklch(0.14 0.015 75)" />
+          <stop offset="42%" stopColor="oklch(0.42 0.04 78)" />
+          <stop offset="58%" stopColor="oklch(0.30 0.03 78)" />
+          <stop offset="100%" stopColor="oklch(0.10 0.012 75)" />
+        </linearGradient>
       </defs>
-      <ellipse cx="100" cy="268" rx="52" ry="7" fill="oklch(0.10 0.01 80)" opacity="0.7" />
-      <rect x="94" y="200" width="12" height="68" fill="url(#mic-body)" />
-      <ellipse cx="100" cy="200" rx="30" ry="5" fill="url(#brass-hi)" />
-      <path d="M 52 140 Q 52 180 80 186 L 120 186 Q 148 180 148 140" stroke="url(#brass-hi)" strokeWidth="6" fill="none" strokeLinecap="round" />
-      <rect x="56" y="54" width="88" height="120" rx="44" fill="url(#brass-g)" stroke="oklch(0.38 0.04 82)" strokeWidth="1.5" />
-      <rect x="64" y="62" width="72" height="104" rx="36" fill="url(#grille-g)" />
-      <g opacity="0.6">
-        {Array.from({ length: 11 }).map((_, i) => (
-          <line key={i} x1="66" x2="134" y1={66 + i * 10} y2={66 + i * 10} stroke="oklch(0.12 0.02 80)" strokeWidth="1" />
-        ))}
-        {Array.from({ length: 7 }).map((_, i) => (
-          <line key={i} x1={70 + i * 10} x2={70 + i * 10} y1="66" y2="164" stroke="oklch(0.12 0.02 80)" strokeWidth="1" />
-        ))}
+
+      {/* Ground shadow — soft, doubled */}
+      <ellipse cx="100" cy="268" rx="56" ry="8" fill="oklch(0.35 0.03 60)" opacity="0.28" />
+      <ellipse cx="100" cy="267" rx="34" ry="5" fill="oklch(0.30 0.03 60)" opacity="0.3" />
+
+      {/* Stand column — tapered with knurled collar */}
+      <path d="M96 196 L94 262 L106 262 L104 196 Z" fill="url(#stand-g)" />
+      <rect x="92" y="216" width="16" height="7" rx="2.5" fill="url(#brass-hi)" />
+      <g stroke="oklch(0.30 0.03 78)" strokeWidth="0.7" opacity="0.7">
+        {[94.5,97,99.5,102,104.5].map((x,i)=><line key={i} x1={x} y1="217" x2={x} y2="222" />)}
       </g>
-      <ellipse cx="88" cy="80" rx="16" ry="28" fill="oklch(1 0 0 / 0.12)" />
-      <rect x="84" y="144" width="32" height="12" rx="2" fill="oklch(0.22 0.03 82)" stroke="oklch(0.55 0.08 82)" strokeWidth="0.8" />
-      <text x="100" y="153" textAnchor="middle" fontSize="7" fontFamily="monospace" fill="oklch(0.7 0.08 82)" letterSpacing="1">PS·47</text>
-      <circle cx="100" cy="180" r="3"
-        fill={active ? 'oklch(0.75 0.18 25)' : 'oklch(0.45 0.04 80)'}
-        style={{ filter: active ? 'drop-shadow(0 0 4px oklch(0.75 0.18 25))' : 'none' }} />
+      {/* Base disc */}
+      <ellipse cx="100" cy="262" rx="30" ry="6.5" fill="url(#brass-g)" />
+      <ellipse cx="100" cy="260.5" rx="30" ry="6" fill="oklch(0.20 0.02 76)" />
+      <ellipse cx="100" cy="260" rx="22" ry="4" fill="url(#brass-hi)" opacity="0.5" />
+
+      {/* Shock-mount yoke */}
+      <path d="M 50 138 Q 50 182 80 190 L 120 190 Q 150 182 150 138" stroke="url(#brass-hi)" strokeWidth="7" fill="none" strokeLinecap="round" />
+      <path d="M 50 138 Q 50 182 80 190 L 120 190 Q 150 182 150 138" stroke="oklch(0.95 0.06 88 / 0.5)" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <circle cx="50" cy="136" r="5.5" fill="url(#brass-g)" stroke="oklch(0.34 0.04 78)" strokeWidth="1" />
+      <circle cx="150" cy="136" r="5.5" fill="url(#brass-g)" stroke="oklch(0.34 0.04 78)" strokeWidth="1" />
+      <circle cx="48.5" cy="134.5" r="1.8" fill="oklch(0.95 0.06 88 / 0.7)" />
+      <circle cx="148.5" cy="134.5" r="1.8" fill="oklch(0.95 0.06 88 / 0.7)" />
+      {/* Yoke-to-stand joint */}
+      <rect x="92" y="188" width="16" height="10" rx="3" fill="url(#brass-g)" stroke="oklch(0.32 0.04 78)" strokeWidth="0.8" />
+
+      {/* Capsule body — brass ring frame */}
+      <rect x="54" y="50" width="92" height="126" rx="46" fill="url(#brass-g)" stroke="oklch(0.32 0.04 78)" strokeWidth="1.5" />
+      {/* Inner bezel shadow */}
+      <rect x="60" y="56" width="80" height="114" rx="40" fill="oklch(0.24 0.03 76)" />
+      {/* Grille */}
+      <rect x="63" y="59" width="74" height="108" rx="37" fill="url(#grille-g)" />
+      <rect x="63" y="59" width="74" height="108" rx="37" fill="url(#mic-mesh)" opacity="0.9" />
+      {/* Center seam band */}
+      <rect x="63" y="108" width="74" height="9" rx="4.5" fill="url(#brass-hi)" opacity="0.9" />
+      <rect x="63" y="110.5" width="74" height="1.2" fill="oklch(0.95 0.07 88 / 0.6)" />
+      {/* Specular bloom on the mesh */}
+      <rect x="63" y="59" width="74" height="108" rx="37" fill="url(#grille-spec)" />
+      {/* Rim light along the left edge */}
+      <path d="M 60 88 Q 58 113 60 140" stroke="oklch(0.96 0.05 90 / 0.55)" strokeWidth="2" fill="none" strokeLinecap="round" />
+
+      {/* Badge */}
+      <rect x="82" y="146" width="36" height="13" rx="3" fill="oklch(0.20 0.025 78)" stroke="oklch(0.62 0.08 82)" strokeWidth="0.9" />
+      <text x="100" y="155.5" textAnchor="middle" fontSize="7" fontFamily="monospace" fill="oklch(0.78 0.09 82)" letterSpacing="1.5">PS·47</text>
+
+      {/* Status jewel */}
+      <circle cx="100" cy="182" r="3.4"
+        fill={active ? 'oklch(0.66 0.21 33)' : 'oklch(0.42 0.03 78)'}
+        style={{ filter: active ? 'drop-shadow(0 0 5px oklch(0.66 0.21 33))' : 'none' }} />
+      <circle cx="99" cy="181" r="1.1" fill={active ? 'oklch(0.9 0.08 45 / 0.9)' : 'oklch(0.6 0.02 78 / 0.5)'} />
     </svg>
   );
 }

@@ -486,3 +486,45 @@ button { background: none; border: none; cursor: pointer; padding: 0; }
 }
 @keyframes ink-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .rise-in { animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── The recording room: curtain, camera, weather, ritual ── */
+@keyframes curtain-left  { from { transform: translateX(0); } to { transform: translateX(-104%); } }
+@keyframes curtain-right { from { transform: translateX(0); } to { transform: translateX(104%); } }
+@keyframes camera-push {
+  0%   { transform: scale(1); }
+  22%  { transform: scale(1); }
+  48%  { transform: scale(2.05); }
+  68%  { transform: scale(2.05); }
+  100% { transform: scale(1); }
+}
+@keyframes scene-flash {
+  0%   { opacity: 0; letter-spacing: 0.05em; transform: translateY(10px); }
+  18%  { opacity: 1; }
+  70%  { opacity: 1; letter-spacing: 0.22em; }
+  100% { opacity: 0; letter-spacing: 0.3em; transform: translateY(-6px); }
+}
+@keyframes snow-fall {
+  0%   { transform: translateY(-8%) translateX(0); opacity: 0; }
+  8%   { opacity: 0.9; }
+  100% { transform: translateY(108%) translateX(var(--sway, 14px)); opacity: 0.75; }
+}
+@keyframes leaf-fall {
+  0%   { transform: translateY(-8%) translateX(0) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.95; }
+  100% { transform: translateY(112%) translateX(var(--sway, -30px)) rotate(var(--spin, 280deg)); opacity: 0.85; }
+}
+@keyframes flame-dance {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.95; }
+  30% { transform: scaleY(1.18) scaleX(0.92); opacity: 1; }
+  60% { transform: scaleY(0.88) scaleX(1.06); opacity: 0.85; }
+  80% { transform: scaleY(1.1) scaleX(0.96); opacity: 0.95; }
+}
+@keyframes hearth-glow {
+  0%, 100% { opacity: 0.5; }
+  45% { opacity: 0.75; }
+  70% { opacity: 0.55; }
+}
+@keyframes window-shimmer {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
