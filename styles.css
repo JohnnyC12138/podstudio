@@ -1,13 +1,13 @@
 /* Podstudio — warm lamplit studio · espresso & aged brass */
 
 :root {
-  /* Espresso wood backgrounds — a recording booth at lamplight */
-  --bg-0: oklch(0.185 0.018 58);       /* page — deep espresso */
-  --bg-1: oklch(0.215 0.021 60);       /* panels */
-  --bg-2: oklch(0.255 0.024 62);       /* raised */
-  --bg-3: oklch(0.295 0.027 64);       /* active */
-  --bg-inset: oklch(0.150 0.016 56);   /* deepest recess */
-  --bg-glass: oklch(0.215 0.021 60 / 0.65);
+  /* Midnight amber — near-black warm wood, lit by brighter brass */
+  --bg-0: oklch(0.135 0.012 55);       /* page — midnight espresso */
+  --bg-1: oklch(0.165 0.015 58);       /* panels */
+  --bg-2: oklch(0.205 0.018 60);       /* raised */
+  --bg-3: oklch(0.245 0.021 62);       /* active */
+  --bg-inset: oklch(0.105 0.010 54);   /* deepest recess */
+  --bg-glass: oklch(0.165 0.015 58 / 0.68);
 
   /* Warm linen text */
   --fg-0: oklch(0.95 0.020 80);        /* primary — warm linen */
@@ -16,17 +16,17 @@
   --fg-3: oklch(0.55 0.024 72);
   --fg-4: oklch(0.43 0.020 70);
 
-  /* Hairlines — warm umber */
-  --line-0: oklch(0.30 0.026 62);
-  --line-1: oklch(0.38 0.030 65);
+  /* Hairlines — warm umber, low-key against the midnight base */
+  --line-0: oklch(0.255 0.022 60);
+  --line-1: oklch(0.335 0.027 63);
 
-  /* Aged brass — the one accent */
-  --brass: oklch(0.78 0.10 82);
-  --brass-bright: oklch(0.86 0.11 82);
-  --brass-dim: oklch(0.62 0.08 82);
-  --brass-soft: oklch(0.42 0.07 82);
-  --brass-tint: oklch(0.78 0.10 82 / 0.12);
-  --brass-on: oklch(0.14 0.02 90);
+  /* Aged brass — brighter against the midnight base */
+  --brass: oklch(0.82 0.12 80);
+  --brass-bright: oklch(0.90 0.13 78);
+  --brass-dim: oklch(0.64 0.09 80);
+  --brass-soft: oklch(0.44 0.07 80);
+  --brass-tint: oklch(0.82 0.12 80 / 0.14);
+  --brass-on: oklch(0.13 0.02 88);
 
   /* Supporting accents — muted, editorial, warm-leaning */
   --sage: oklch(0.74 0.07 130);
@@ -56,7 +56,7 @@
   --sh-sm: 0 1px 2px oklch(0 0 0 / 0.35), 0 1px 1px oklch(0 0 0 / 0.25);
   --sh-md: 0 6px 14px -2px oklch(0 0 0 / 0.45), 0 2px 4px oklch(0 0 0 / 0.3);
   --sh-lg: 0 24px 50px -12px oklch(0 0 0 / 0.7), 0 6px 14px -4px oklch(0 0 0 / 0.45);
-  --sh-glow: 0 0 32px -4px var(--brass-tint);
+  --sh-glow: 0 0 40px -4px oklch(0.82 0.12 80 / 0.22);
   --sh-inset: inset 0 1px 0 oklch(1 0 0 / 0.04), inset 0 -1px 0 oklch(0 0 0 / 0.3);
 
   --font-display: 'Fraunces', 'Instrument Serif', Georgia, serif;
