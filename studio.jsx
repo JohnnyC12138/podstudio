@@ -827,7 +827,7 @@ function GuestSeat({ g, recording, narrow }) {
   return (
     <div style={{
       width: w, height: h, flexShrink: 0,
-      background: 'oklch(0.12 0.02 165 / 0.8)',
+      background: 'oklch(0.12 0.018 58 / 0.8)',
       borderRadius: 'var(--r-md)',
       border: `1px solid ${g.status === 'joined' ? 'oklch(0.78 0.1 82 / 0.45)' : 'var(--line-0)'}`,
       overflow: 'hidden',
@@ -843,7 +843,7 @@ function GuestSeat({ g, recording, narrow }) {
         ) : (
         <div style={{
           position: 'absolute', inset: 0,
-          background: `radial-gradient(ellipse at 50% 40%, ${tint} 0%, oklch(0.14 0.02 165) 75%)`,
+          background: `radial-gradient(ellipse at 50% 40%, ${tint} 0%, oklch(0.14 0.018 58) 75%)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Avatar name={g.name} tint={g.tint} size={56} />
@@ -1169,7 +1169,7 @@ function StudioRoomCard({ guests, roomId, isHost, connectionStatus, openInvite }
     : [...guests, { key: 'waiting-guest', name: 'Waiting for guest', role: 'Guest', tint: 'olive', status: 'invited', waiting: true }];
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', background: 'oklch(0.14 0.02 165 / 0.88)', borderColor: 'oklch(0.78 0.1 82 / 0.22)' }}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden', background: 'oklch(0.14 0.018 58 / 0.88)', borderColor: 'oklch(0.78 0.1 82 / 0.22)' }}>
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--brass-tint)', color: 'var(--brass-bright)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <I.Users size={15} />
@@ -1277,7 +1277,7 @@ function WrapScreen({ elapsed, tracks = [], videos = [], episodeTitle, isHost })
           </p>
 
           {tracks.length > 0 && (
-            <div className="card" style={{ padding: 16, marginTop: 28, marginBottom: 20, background: 'oklch(0.18 0.02 165 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
+            <div className="card" style={{ padding: 16, marginTop: 28, marginBottom: 20, background: 'oklch(0.18 0.018 58 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
               <div className="caps" style={{ marginBottom: 12 }}>Recorded tracks</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {tracks.map((t, i) => (
@@ -1312,7 +1312,7 @@ function WrapScreen({ elapsed, tracks = [], videos = [], episodeTitle, isHost })
           )}
 
           {videos.length > 0 && (
-            <div className="card" style={{ padding: 16, marginBottom: 20, background: 'oklch(0.18 0.02 165 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
+            <div className="card" style={{ padding: 16, marginBottom: 20, background: 'oklch(0.18 0.018 58 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
               <div className="caps" style={{ marginBottom: 12 }}>Video recordings</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {videos.map((v, i) => (

@@ -547,7 +547,7 @@ function Countdown({ onDone }) {
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 500,
-      background: 'oklch(0.08 0.015 165 / 0.82)',
+      background: 'oklch(0.08 0.014 58 / 0.82)',
       backdropFilter: 'blur(8px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       flexDirection: 'column', gap: 32,

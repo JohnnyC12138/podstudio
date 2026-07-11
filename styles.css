@@ -1,24 +1,24 @@
-/* Podstudio — editorial deep forest / aged brass */
+/* Podstudio — warm lamplit studio · espresso & aged brass */
 
 :root {
-  /* Deep forest + slate backgrounds */
-  --bg-0: oklch(0.19 0.022 165);       /* page — deep forest */
-  --bg-1: oklch(0.22 0.024 165);       /* panels */
-  --bg-2: oklch(0.26 0.026 168);       /* raised */
-  --bg-3: oklch(0.30 0.028 170);       /* active */
-  --bg-inset: oklch(0.15 0.020 165);   /* deepest recess */
-  --bg-glass: oklch(0.22 0.024 165 / 0.65);
+  /* Espresso wood backgrounds — a recording booth at lamplight */
+  --bg-0: oklch(0.185 0.018 58);       /* page — deep espresso */
+  --bg-1: oklch(0.215 0.021 60);       /* panels */
+  --bg-2: oklch(0.255 0.024 62);       /* raised */
+  --bg-3: oklch(0.295 0.027 64);       /* active */
+  --bg-inset: oklch(0.150 0.016 56);   /* deepest recess */
+  --bg-glass: oklch(0.215 0.021 60 / 0.65);
 
   /* Warm linen text */
-  --fg-0: oklch(0.94 0.018 85);        /* primary — warm linen */
-  --fg-1: oklch(0.82 0.020 85);
-  --fg-2: oklch(0.68 0.020 85);
-  --fg-3: oklch(0.54 0.020 85);
-  --fg-4: oklch(0.42 0.018 90);
+  --fg-0: oklch(0.95 0.020 80);        /* primary — warm linen */
+  --fg-1: oklch(0.83 0.024 78);
+  --fg-2: oklch(0.69 0.026 75);
+  --fg-3: oklch(0.55 0.024 72);
+  --fg-4: oklch(0.43 0.020 70);
 
-  /* Hairlines — warm-tinged greens */
-  --line-0: oklch(0.30 0.024 168);
-  --line-1: oklch(0.38 0.028 172);
+  /* Hairlines — warm umber */
+  --line-0: oklch(0.30 0.026 62);
+  --line-1: oklch(0.38 0.030 65);
 
   /* Aged brass — the one accent */
   --brass: oklch(0.78 0.10 82);
@@ -28,12 +28,12 @@
   --brass-tint: oklch(0.78 0.10 82 / 0.12);
   --brass-on: oklch(0.14 0.02 90);
 
-  /* Supporting accents — muted, editorial */
-  --sage: oklch(0.72 0.06 155);
-  --sage-tint: oklch(0.72 0.06 155 / 0.14);
+  /* Supporting accents — muted, editorial, warm-leaning */
+  --sage: oklch(0.74 0.07 130);
+  --sage-tint: oklch(0.74 0.07 130 / 0.14);
   --copper: oklch(0.68 0.12 45);
   --copper-tint: oklch(0.68 0.12 45 / 0.14);
-  --plum: oklch(0.60 0.08 320);
+  --plum: oklch(0.62 0.07 340);
 
   --rec: oklch(0.66 0.17 25);
   --rec-dim: oklch(0.48 0.14 25);
@@ -44,7 +44,7 @@
   --terracotta-tint: var(--brass-tint);
   --terracotta-on: var(--brass-on);
   --olive: var(--sage);
-  --olive-soft: oklch(0.35 0.05 155);
+  --olive-soft: oklch(0.35 0.05 130);
   --olive-tint: var(--sage-tint);
   --amber: var(--brass-bright);
   --amber-soft: oklch(0.40 0.08 80);
