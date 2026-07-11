@@ -25,7 +25,8 @@ function App() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  const showSidebar = isHost && vw >= 920;
+  // Landing is a chrome-free paper page; the app shell appears once you step inside
+  const showSidebar = isHost && vw >= 920 && page !== 'home';
 
   React.useEffect(() => { localStorage.setItem('podstudio-page', page); }, [page]);
   React.useEffect(() => { localStorage.setItem('podstudio-mode', studioMode); }, [studioMode]);
