@@ -28,6 +28,13 @@ function App() {
   // Landing is a chrome-free paper page; the app shell appears once you step inside
   const showSidebar = isHost && vw >= 920 && page !== 'home';
 
+  // The stamp splash greets first-time visitors only — after you've stepped
+  // into the app once, Home becomes a working desk
+  const [entered, setEntered] = React.useState(() => localStorage.getItem('podstudio-entered') === '1');
+  React.useEffect(() => {
+    if (page !== 'home' && !entered) { localStorage.setItem('podstudio-entered', '1'); setEntered(true); }
+  }, [page, entered]);
+
   React.useEffect(() => { localStorage.setItem('podstudio-page', page); }, [page]);
   React.useEffect(() => { localStorage.setItem('podstudio-mode', studioMode); }, [studioMode]);
 
@@ -107,10 +114,12 @@ function App() {
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }} data-screen-label={`Podstudio · ${page}`}>
       {showSidebar && <Sidebar page={page} setPage={setPage} />}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}>
-        {page === 'home' && <LandingPage setPage={setPage} openInvite={openInvite} />}
+        {page === 'home' && (entered
+          ? <HomePage setPage={setPage} openInvite={openInvite} tracks={tracks} />
+          : <LandingPage setPage={setPage} openInvite={openInvite} />)}
         {page === 'onboarding' && <OnboardingPage setPage={setPage} setStudioMode={setStudioMode} />}
         {page === 'studio' && <StudioPage openInvite={openInvite} openMusic={() => setModal('music')} studioMode={studioMode} roomId={roomId} isHost={isHost} onRecordingComplete={(newTracks) => setTracks(newTracks)} />}
-        {page === 'edit' && <EditorPage openExport={() => setModal('export')} openMusic={() => setModal('music')} tracks={tracks} musicBed={musicBed} onRemoveBed={() => setMusicBed(null)} />}
+        {page === 'edit' && <EditorPage openExport={() => setModal('export')} openMusic={() => setModal('music')} tracks={tracks} musicBed={musicBed} onRemoveBed={() => setMusicBed(null)} onSetBed={setMusicBed} />}
       </main>
 
       {modal === 'invite' && <InviteModal onClose={() => setModal(null)} roomId={roomId} />}

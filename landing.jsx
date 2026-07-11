@@ -188,4 +188,90 @@ function LandingPage({ setPage, openInvite }) {
   );
 }
 
+// ── Home — the working desk you return to after the splash ──
+function HomePage({ setPage, openInvite, tracks = [] }) {
+  const ink = 'oklch(0.25 0.028 55)';
+  const inkSoft = 'oklch(0.48 0.024 60)';
+  const userName = localStorage.getItem('podstudio-name') || '';
+  const episodeTitle = localStorage.getItem('podstudio-episode-title') || '';
+  const hasTracks = tracks.length > 0;
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? 'Working late' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  const cards = [
+    {
+      title: 'Record',
+      desc: episodeTitle ? `Continue “${episodeTitle}” — the green room is open.` : 'Open the studio, name your episode, invite a guest by link.',
+      cta: episodeTitle ? 'Back to the studio' : 'Open the studio',
+      onClick: () => setPage('studio'),
+      accent: true, icon: I.Mic,
+    },
+    {
+      title: 'Edit & export',
+      desc: hasTracks ? `${tracks.length} track${tracks.length > 1 ? 's' : ''} from your last session are on the desk.` : 'Your recorded tracks land here — cuts, music, AI producer.',
+      cta: hasTracks ? 'Open the editor' : 'Editor (empty for now)',
+      onClick: () => setPage('edit'),
+      accent: false, icon: I.Edit,
+    },
+    {
+      title: 'Invite a guest',
+      desc: 'Anyone with the link records locally in their browser — no install, no account.',
+      cta: 'Get the link',
+      onClick: openInvite,
+      accent: false, icon: I.Link,
+    },
+  ];
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', background: PAGE_BG, color: ink, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '26px 40px', flexShrink: 0 }}>
+        <span className="display" style={{ fontSize: 21, color: ink }}>Podstudio</span>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 26, alignItems: 'center' }}>
+          <a onClick={() => setPage('studio')} style={{ fontSize: 13.5, color: inkSoft, cursor: 'pointer' }}>Studio</a>
+          <a onClick={() => setPage('edit')} style={{ fontSize: 13.5, color: inkSoft, cursor: 'pointer' }}>Editor</a>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: 880, width: '100%', margin: '0 auto', padding: '20px 32px 60px' }}>
+        <div className="caps rise-in" style={{ color: 'var(--brass)', marginBottom: 12 }}>Your desk</div>
+        <h1 className="display rise-in" style={{ fontSize: 'clamp(36px, 5.5vw, 60px)', lineHeight: 1.04, margin: 0, color: ink, animationDelay: '0.08s' }}>
+          {greeting}{userName ? <>, <em style={{ color: 'var(--brass)' }}>{userName}</em></> : ''}.
+        </h1>
+        <p className="rise-in" style={{ fontSize: 14.5, color: inkSoft, marginTop: 14, animationDelay: '0.16s' }}>
+          {hasTracks ? 'There’s tape on the desk waiting for a cut.' : episodeTitle ? 'Your episode is set up — the studio is ready when you are.' : 'A quiet desk. Start something.'}
+        </p>
+
+        <div className="rise-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14, marginTop: 34, animationDelay: '0.26s' }}>
+          {cards.map((c, i) => (
+            <div key={i} onClick={c.onClick}
+              style={{
+                padding: '22px 20px', cursor: 'pointer',
+                background: c.accent ? 'var(--brass)' : STAMP_PAPER,
+                color: c.accent ? 'var(--brass-on)' : ink,
+                border: `1px solid ${c.accent ? 'var(--brass-dim)' : 'var(--line-1)'}`,
+                borderRadius: 14,
+                boxShadow: c.accent ? '0 16px 34px -12px oklch(0.52 0.18 35 / 0.5)' : 'var(--sh-md)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+              <c.icon size={17} style={{ opacity: 0.85 }} />
+              <div className="display" style={{ fontSize: 24, margin: '12px 0 6px' }}>{c.title}</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.55, opacity: c.accent ? 0.92 : 0.75, minHeight: 40 }}>{c.desc}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 14 }}>{c.cta} →</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '0 40px 26px', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span className="mono" style={{ fontSize: 10.5, color: 'oklch(0.58 0.022 62)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Record → Edit → Export</span>
+        <span style={{ fontSize: 11.5, color: 'oklch(0.60 0.02 65)' }}>recordings stay in this browser — download after each session</span>
+      </div>
+    </div>
+  );
+}
+
 window.LandingPage = LandingPage;
+window.HomePage = HomePage;

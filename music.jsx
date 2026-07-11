@@ -221,8 +221,9 @@ async function renderMixToWav(trackInputs, bedKind, bedGain = 0.6, opts = {}) {
     }
   }
 
-  // AI tighten: keep at most 0.4s of any silent stretch.
-  // The music-only intro/outro regions are protected from collapsing.
+  // AI tighten: keep at most `tightenMax` seconds of any silent stretch
+  // (default 0.4s; producer modes pass 0.2–0.6). Intro/outro are protected.
+  const maxKeepWin = Math.max(1, Math.round((opts.tightenMax || 0.4) / 0.1));
   if (opts.tighten) {
     const win = Math.floor(sr * 0.1);
     const protectHead = Math.floor(introSec * sr);
@@ -243,7 +244,7 @@ async function renderMixToWav(trackInputs, bedKind, bedGain = 0.6, opts = {}) {
       for (let i = w; i < end; i += 8) { rms += out[0][i] * out[0][i]; c++; }
       rms = Math.sqrt(rms / c);
       silentRun = rms < 0.012 ? silentRun + 1 : 0;
-      if (silentRun > 4) continue; // drop beyond 0.4s of continuous silence
+      if (silentRun > maxKeepWin) continue; // drop silence beyond the mode's cut length
       for (let ch = 0; ch < 2; ch++) nOut[ch].set(out[ch].subarray(w, end), w2);
       w2 += end - w;
     }

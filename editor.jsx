@@ -1,6 +1,15 @@
 // Edit & Export page — post-recording editor
 
-function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemoveBed }) {
+// AI Producer — one-click editing presets. Each mode is a tuned bundle of the
+// real on-device pipeline: silence cuts, voice polish, music bed, intro/outro.
+const PRODUCER_MODES = [
+  { k: 'crisp',  name: 'Crisp Interview', desc: 'tight cuts · clean voices · no music',       post: { tighten: true, tightenMax: 0.25, polish: true, fade: true, intro: false }, bed: null },
+  { k: 'warm',   name: 'Warm Chat',       desc: 'gentle pace · cozy bed underneath',          post: { tighten: true, tightenMax: 0.5,  polish: true, fade: true, intro: false }, bed: 'warm-glow' },
+  { k: 'story',  name: 'Storytelling',    desc: 'documentary pacing · music opens & closes',  post: { tighten: true, tightenMax: 0.6,  polish: true, fade: true, intro: true },  bed: 'night-drift' },
+  { k: 'energy', name: 'Energetic Show',  desc: 'fast pace · bright bed · big open',          post: { tighten: true, tightenMax: 0.2,  polish: true, fade: true, intro: true },  bed: 'paper-lights' },
+];
+
+function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemoveBed, onSetBed }) {
   // Imported soundtracks (jingles, ad reads, external audio) join the session
   const [imported, setImported] = React.useState([]);
   const importInputRef = React.useRef(null);
@@ -142,7 +151,13 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
     1
   );
   const [post, setPost] = React.useState({ tighten: false, polish: true, fade: true, intro: false });
-  const togglePost = (k) => setPost(p => ({ ...p, [k]: !p[k] }));
+  const togglePost = (k) => { setProducerMode(null); setPost(p => ({ ...p, [k]: !p[k] })); };
+  const [producerMode, setProducerMode] = React.useState(null);
+  const applyMode = (m) => {
+    setProducerMode(m.k);
+    setPost(m.post);
+    onSetBed?.(m.bed ? MUSIC_BEDS.find(b => b.kind === m.bed) : null);
+  };
   const [speed, setSpeed] = React.useState(1);
   const setRate = (r) => { setSpeed(r); if (audioRef.current) audioRef.current.playbackRate = r; };
   const seekTo = (sec) => {
@@ -228,6 +243,35 @@ function EditorPage({ openExport, openMusic, tracks, recording, musicBed, onRemo
           </button>
         )}
       </div>
+
+      {/* AI Producer — pick a mood, the pipeline configures itself */}
+      {effectiveTracks.length > 0 && (
+        <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--bg-1)' }}>
+          <span className="caps" style={{ color: 'var(--brass)', flexShrink: 0 }}><I.Sparkle size={10} style={{ verticalAlign: '-1px', marginRight: 4 }} />AI Producer</span>
+          {PRODUCER_MODES.map(m => {
+            const on = producerMode === m.k;
+            return (
+              <button key={m.k} onClick={() => applyMode(m)} title={m.desc}
+                style={{
+                  padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: on ? 600 : 500, whiteSpace: 'nowrap',
+                  background: on ? 'var(--brass)' : 'var(--bg-2)',
+                  border: `1px solid ${on ? 'var(--brass-dim)' : 'var(--line-0)'}`,
+                  color: on ? 'var(--brass-on)' : 'var(--fg-1)',
+                  boxShadow: on ? '0 4px 12px -4px oklch(0.52 0.18 35 / 0.5)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}>
+                {m.name}
+              </button>
+            );
+          })}
+          <span style={{ fontSize: 11, color: 'var(--fg-3)' }}>
+            {producerMode
+              ? `${PRODUCER_MODES.find(m => m.k === producerMode)?.desc} — hit Export when ready`
+              : 'one tap sets cuts, polish and music · fine-tune with the pills above'}
+          </span>
+        </div>
+      )}
+
       {musicBed && (
         <div style={{ padding: '7px 18px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--brass-tint)', fontSize: 11.5, color: 'var(--fg-1)' }}>
           <I.Music size={11} style={{ color: 'var(--brass-bright)' }} />
