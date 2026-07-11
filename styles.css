@@ -1,42 +1,42 @@
-/* Podstudio — warm lamplit studio · espresso & aged brass */
+/* Podstudio — paper studio · bone white, warm ink, vermillion */
 
 :root {
-  /* Midnight amber — near-black warm wood, lit by brighter brass */
-  --bg-0: oklch(0.135 0.012 55);       /* page — midnight espresso */
-  --bg-1: oklch(0.165 0.015 58);       /* panels */
-  --bg-2: oklch(0.205 0.018 60);       /* raised */
-  --bg-3: oklch(0.245 0.021 62);       /* active */
-  --bg-inset: oklch(0.105 0.010 54);   /* deepest recess */
-  --bg-glass: oklch(0.165 0.015 58 / 0.68);
+  /* Bone paper surfaces — the whole app is a letter being written */
+  --bg-0: oklch(0.962 0.010 88);       /* page — bone paper */
+  --bg-1: oklch(0.945 0.012 86);       /* panels */
+  --bg-2: oklch(0.920 0.014 84);       /* raised */
+  --bg-3: oklch(0.892 0.016 82);       /* active */
+  --bg-inset: oklch(0.905 0.013 84);   /* recess */
+  --bg-glass: oklch(0.962 0.010 88 / 0.82);
 
-  /* Warm linen text */
-  --fg-0: oklch(0.95 0.020 80);        /* primary — warm linen */
-  --fg-1: oklch(0.83 0.024 78);
-  --fg-2: oklch(0.69 0.026 75);
-  --fg-3: oklch(0.55 0.024 72);
-  --fg-4: oklch(0.43 0.020 70);
+  /* Warm ink text */
+  --fg-0: oklch(0.245 0.018 55);       /* primary — warm ink */
+  --fg-1: oklch(0.355 0.020 58);
+  --fg-2: oklch(0.480 0.022 60);
+  --fg-3: oklch(0.600 0.020 65);
+  --fg-4: oklch(0.700 0.016 70);
 
-  /* Hairlines — warm umber, low-key against the midnight base */
-  --line-0: oklch(0.255 0.022 60);
-  --line-1: oklch(0.335 0.027 63);
+  /* Hairlines — pencil on paper */
+  --line-0: oklch(0.865 0.014 82);
+  --line-1: oklch(0.790 0.018 78);
 
-  /* Aged brass — brighter against the midnight base */
-  --brass: oklch(0.82 0.12 80);
-  --brass-bright: oklch(0.90 0.13 78);
-  --brass-dim: oklch(0.64 0.09 80);
-  --brass-soft: oklch(0.44 0.07 80);
-  --brass-tint: oklch(0.82 0.12 80 / 0.14);
-  --brass-on: oklch(0.13 0.02 88);
+  /* Vermillion — the ON AIR red, our one loud voice */
+  --brass: oklch(0.60 0.19 35);
+  --brass-bright: oklch(0.66 0.21 38);
+  --brass-dim: oklch(0.52 0.16 34);
+  --brass-soft: oklch(0.80 0.08 38);
+  --brass-tint: oklch(0.60 0.19 35 / 0.10);
+  --brass-on: oklch(0.97 0.008 88);
 
-  /* Supporting accents — muted, editorial, warm-leaning */
-  --sage: oklch(0.74 0.07 130);
-  --sage-tint: oklch(0.74 0.07 130 / 0.14);
-  --copper: oklch(0.68 0.12 45);
-  --copper-tint: oklch(0.68 0.12 45 / 0.14);
-  --plum: oklch(0.62 0.07 340);
+  /* Supporting accents — editorial, warm-leaning */
+  --sage: oklch(0.58 0.09 130);
+  --sage-tint: oklch(0.58 0.09 130 / 0.12);
+  --copper: oklch(0.62 0.12 55);
+  --copper-tint: oklch(0.62 0.12 55 / 0.12);
+  --plum: oklch(0.50 0.08 340);
 
-  --rec: oklch(0.66 0.17 25);
-  --rec-dim: oklch(0.48 0.14 25);
+  --rec: oklch(0.60 0.19 32);
+  --rec-dim: oklch(0.50 0.15 32);
 
   /* Legacy aliases so older components keep working */
   --terracotta: var(--brass);
@@ -46,22 +46,22 @@
   --olive: var(--sage);
   --olive-soft: oklch(0.35 0.05 130);
   --olive-tint: var(--sage-tint);
-  --amber: var(--brass-bright);
-  --amber-soft: oklch(0.40 0.08 80);
+  --amber: oklch(0.72 0.13 75);
+  --amber-soft: oklch(0.86 0.08 80);
   --teal: var(--brass);
   --teal-dim: var(--brass-dim);
   --teal-glow: var(--brass-tint);
 
-  /* Shadows — deep, cinematic */
-  --sh-sm: 0 1px 2px oklch(0 0 0 / 0.35), 0 1px 1px oklch(0 0 0 / 0.25);
-  --sh-md: 0 6px 14px -2px oklch(0 0 0 / 0.45), 0 2px 4px oklch(0 0 0 / 0.3);
-  --sh-lg: 0 24px 50px -12px oklch(0 0 0 / 0.7), 0 6px 14px -4px oklch(0 0 0 / 0.45);
-  --sh-glow: 0 0 40px -4px oklch(0.82 0.12 80 / 0.22);
-  --sh-inset: inset 0 1px 0 oklch(1 0 0 / 0.04), inset 0 -1px 0 oklch(0 0 0 / 0.3);
+  /* Shadows — soft graphite on paper */
+  --sh-sm: 0 1px 2px oklch(0.30 0.03 60 / 0.10), 0 1px 1px oklch(0.30 0.03 60 / 0.06);
+  --sh-md: 0 6px 16px -4px oklch(0.30 0.03 60 / 0.16), 0 2px 4px oklch(0.30 0.03 60 / 0.08);
+  --sh-lg: 0 24px 48px -16px oklch(0.30 0.03 60 / 0.24), 0 6px 14px -6px oklch(0.30 0.03 60 / 0.12);
+  --sh-glow: 0 0 36px -6px oklch(0.60 0.19 35 / 0.28);
+  --sh-inset: inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(0.30 0.03 60 / 0.06);
 
-  --font-display: 'Fraunces', 'Instrument Serif', Georgia, serif;
-  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'Space Mono', 'SF Mono', Menlo, monospace;
 
   --r-sm: 6px;
   --r-md: 10px;
@@ -469,3 +469,20 @@ button { background: none; border: none; cursor: pointer; padding: 0; }
 @keyframes sc-drift { from { transform: translateX(-2.5%); } to { transform: translateX(2.5%); } }
 @keyframes sc-firefly { 0%, 100% { opacity: 0; transform: translateY(0); } 50% { opacity: 0.9; transform: translateY(-16px); } }
 @keyframes sc-twinkle { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.95; } }
+
+/* Paper-studio motion language */
+@keyframes stamp-in {
+  0% { opacity: 0; transform: rotate(var(--stamp-rot, 0deg)) translateY(-46px) scale(1.18); }
+  62% { opacity: 1; transform: rotate(var(--stamp-rot, 0deg)) translateY(6px) scale(0.97); }
+  100% { opacity: 1; transform: rotate(var(--stamp-rot, 0deg)) translateY(var(--stamp-y, 0px)) scale(1); }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes ink-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.rise-in { animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }

@@ -223,181 +223,78 @@ function StepIndicator({ current }) {
 // Scene — cinematic background environments (painted with CSS)
 // ─────────────────────────────────────────────────────────────
 function Scene({ scene = 'lateNight', size = 'full' }) {
-  if (scene === 'lateNight') return <LateNightBooth />;
-  const scenes = {
-    lateNight: {
-      // Dark wood paneling + warm lamp glow
-      bg: `
-        radial-gradient(ellipse 60% 50% at 70% 35%, oklch(0.58 0.14 65 / 0.45) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 30% at 25% 70%, oklch(0.42 0.1 55 / 0.35) 0%, transparent 65%),
-        repeating-linear-gradient(90deg,
-          oklch(0.18 0.025 60) 0px, oklch(0.18 0.025 60) 40px,
-          oklch(0.20 0.028 58) 40px, oklch(0.20 0.028 58) 42px,
-          oklch(0.16 0.022 60) 42px, oklch(0.16 0.022 60) 80px,
-          oklch(0.20 0.028 58) 80px, oklch(0.20 0.028 58) 82px),
-        linear-gradient(to bottom, oklch(0.22 0.03 65), oklch(0.14 0.022 60))`,
-      lamps: true,
-    },
-    rooftop: {
-      // City skyline at dusk
-      bg: `
-        linear-gradient(to bottom,
-          oklch(0.28 0.07 250) 0%,
-          oklch(0.38 0.10 30) 45%,
-          oklch(0.25 0.06 40) 70%,
-          oklch(0.14 0.03 240) 100%)`,
-      skyline: true,
-    },
-    whiteRoom: {
-      bg: `
-        radial-gradient(ellipse at center, oklch(0.95 0.01 85) 0%, oklch(0.80 0.015 85) 100%)`,
-      minimal: true,
-    },
-    vintage: {
-      // Radio booth — deep burgundy + old gold panel
-      bg: `
-        radial-gradient(ellipse 50% 40% at 50% 40%, oklch(0.38 0.12 35 / 0.6) 0%, transparent 70%),
-        linear-gradient(to bottom, oklch(0.22 0.06 25), oklch(0.14 0.04 25))`,
-      vintage: true,
-    },
-    terrace: {
-      // Dusk terrace — indigo sky melting into a warm horizon band over hills
-      bg: `
-        linear-gradient(to bottom,
-          oklch(0.26 0.06 270) 0%,
-          oklch(0.40 0.08 255) 32%,
-          oklch(0.62 0.10 60) 56%,
-          oklch(0.52 0.08 120) 72%,
-          oklch(0.30 0.06 150) 100%)`,
-      terrace: true,
-    },
+  // Paper stages — every scene is ink and one voice of vermillion on bone paper
+  const INK = 'oklch(0.30 0.025 55)';
+  const VERM = 'oklch(0.60 0.19 35)';
+  const defs = {
+    lateNight: { tone: 'oklch(0.955 0.012 88)', motif: 'lamp' },
+    rooftop:   { tone: 'oklch(0.948 0.014 80)', motif: 'skyline' },
+    whiteRoom: { tone: 'oklch(0.975 0.006 90)', motif: 'blank' },
+    vintage:   { tone: 'oklch(0.945 0.016 75)', motif: 'halftone' },
+    terrace:   { tone: 'oklch(0.952 0.014 95)', motif: 'meadow' },
   };
-  const s = scenes[scene] || scenes.lateNight;
-  const dark = scene !== 'whiteRoom';
-
+  const s = defs[scene] || defs.lateNight;
   return (
-    <div style={{ position: 'absolute', inset: 0, background: s.bg, overflow: 'hidden' }}>
-      {/* Wood paneling detail */}
-      {s.lamps && (
+    <div style={{ position: 'absolute', inset: 0, background: s.tone, overflow: 'hidden' }}>
+      {/* Ruled paper texture — faint horizontal guides */}
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.5,
+        background: 'repeating-linear-gradient(to bottom, transparent 0 46px, oklch(0.86 0.014 80 / 0.55) 46px 47px)' }} />
+      {/* Margin rule, like a notebook */}
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 64, width: 1, background: 'oklch(0.60 0.19 35 / 0.18)' }} />
+
+      {s.motif === 'lamp' && (
         <>
-          {/* Lamp glow on the right */}
-          <div style={{ position: 'absolute', right: '12%', top: '10%', width: 220, height: 220,
-            background: 'radial-gradient(circle, oklch(0.85 0.16 70 / 0.55), transparent 70%)',
-            filter: 'blur(20px)',
-          }} />
-          {/* Low shelf line */}
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: '24%', height: 2,
-            background: 'linear-gradient(to right, transparent, oklch(0.3 0.04 65), transparent)' }} />
+          <div style={{ position: 'absolute', right: '14%', top: '8%', width: 300, height: 300,
+            background: 'radial-gradient(circle, oklch(0.88 0.07 70 / 0.55), transparent 68%)', filter: 'blur(18px)' }} />
+          <svg viewBox="0 0 200 160" style={{ position: 'absolute', right: '16%', top: '6%', width: 130, opacity: 0.85 }}>
+            <g stroke={INK} strokeWidth="1.6" fill="none" strokeLinecap="round">
+              <line x1="100" y1="0" x2="100" y2="42" />
+              <path d="M78 42 h44 l-8 26 h-28 Z" fill="oklch(0.985 0.006 90)" />
+              <path d="M86 74 a14 10 0 0 0 28 0" fill="oklch(0.72 0.13 75 / 0.5)" stroke="none" />
+            </g>
+          </svg>
         </>
       )}
-      {s.skyline && (
+      {s.motif === 'skyline' && (
         <>
-          {/* Skyline silhouette */}
-          <svg viewBox="0 0 800 200" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: '20%', width: '100%', height: '35%', opacity: 0.9 }}>
-            <defs>
-              <linearGradient id="sky-grad" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="oklch(0.18 0.03 250)" />
-                <stop offset="100%" stopColor="oklch(0.10 0.02 250)" />
-              </linearGradient>
-            </defs>
-            <path d="M0 200 L0 120 L40 120 L40 80 L80 80 L80 110 L110 110 L110 60 L150 60 L150 90 L200 90 L200 40 L240 40 L240 100 L290 100 L290 70 L330 70 L330 95 L370 95 L370 30 L410 30 L410 80 L450 80 L450 60 L490 60 L490 110 L530 110 L530 50 L570 50 L570 90 L620 90 L620 70 L660 70 L660 100 L720 100 L720 55 L760 55 L760 95 L800 95 L800 200 Z" fill="url(#sky-grad)" />
+          <div style={{ position: 'absolute', left: '12%', top: '16%', width: 110, height: 110, borderRadius: '50%',
+            background: VERM, opacity: 0.85 }} />
+          <svg viewBox="0 0 800 140" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: '18%', width: '100%', height: 120 }}>
+            <path d="M0 120 L60 120 L60 70 L120 70 L120 100 L180 100 L180 40 L250 40 L250 90 L330 90 L330 60 L400 60 L400 110 L470 110 L470 30 L540 30 L540 80 L620 80 L620 55 L700 55 L700 95 L800 95"
+              fill="none" stroke={INK} strokeWidth="1.6" opacity="0.7" />
           </svg>
-          {/* Window lights */}
-          {Array.from({ length: 40 }).map((_, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              left: `${(i * 23) % 95 + 2}%`,
-              bottom: `${25 + (i * 7) % 18}%`,
-              width: 2, height: 2,
-              background: i % 3 ? 'oklch(0.85 0.14 75)' : 'oklch(0.92 0.05 85)',
-              boxShadow: '0 0 3px oklch(0.85 0.14 75 / 0.8)',
-              opacity: 0.8,
-              animation: i % 4 === 0 ? `sc-twinkle ${3 + (i % 6)}s ease-in-out ${i * 0.7}s infinite` : 'none',
-            }} />
-          ))}
         </>
       )}
-      {s.vintage && (
-        <div style={{ position: 'absolute', inset: 0,
-          background: 'repeating-linear-gradient(45deg, transparent 0px, transparent 3px, oklch(0.3 0.06 30 / 0.1) 3px, oklch(0.3 0.06 30 / 0.1) 4px)' }} />
-      )}
-      {s.terrace && (
+      {s.motif === 'halftone' && (
         <>
-          {/* Stars in the upper dusk sky */}
-          {Array.from({ length: 16 }).map((_, i) => (
-            <div key={'st' + i} style={{
-              position: 'absolute',
-              left: `${(i * 37 + 11) % 96 + 2}%`, top: `${(i * 13) % 26 + 3}%`,
-              width: i % 4 === 0 ? 2.5 : 1.5, height: i % 4 === 0 ? 2.5 : 1.5, borderRadius: '50%',
-              background: 'oklch(0.95 0.02 85)',
-              animation: `sc-twinkle ${2.6 + (i % 5) * 0.9}s ease-in-out ${i * 0.4}s infinite`,
-            }} />
-          ))}
-          {/* Setting sun with warm halo, sitting on the horizon band */}
-          <div style={{ position: 'absolute', left: '16%', top: '40%', width: 130, height: 130,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, oklch(0.94 0.10 70 / 0.95) 25%, oklch(0.85 0.14 60 / 0.5) 55%, transparent 72%)',
-            filter: 'blur(3px)',
-          }} />
-          <div style={{ position: 'absolute', left: '2%', top: '28%', width: 420, height: 320,
-            background: 'radial-gradient(circle, oklch(0.80 0.12 60 / 0.30), transparent 68%)',
-            filter: 'blur(24px)', pointerEvents: 'none',
-          }} />
-          {/* Drifting clouds */}
-          {[{ l: '30%', t: '16%', w: 240, o: 0.20, d: 46 }, { l: '58%', t: '30%', w: 320, o: 0.16, d: 62 }, { l: '8%', t: '48%', w: 260, o: 0.22, d: 54 }].map((c, i) => (
-            <div key={'cl' + i} style={{
-              position: 'absolute', left: c.l, top: c.t, width: c.w, height: c.w * 0.22,
-              borderRadius: '50%',
-              background: `oklch(0.90 0.04 70 / ${c.o})`,
-              filter: 'blur(18px)',
-              animation: `sc-drift ${c.d}s ease-in-out infinite alternate`,
-            }} />
-          ))}
-          {/* Layered hills for depth */}
-          <svg viewBox="0 0 800 200" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, width: '100%', height: '52%' }}>
-            <path d="M0 200 L0 120 Q 120 95 260 125 T 520 115 T 800 105 L800 200 Z" fill="oklch(0.30 0.06 155)" opacity="0.55" />
-            <path d="M0 200 L0 150 Q 150 128 320 152 T 620 148 T 800 138 L800 200 Z" fill="oklch(0.22 0.05 158)" opacity="0.8" />
-            <path d="M0 200 L0 175 Q 200 158 420 176 T 800 168 L800 200 Z" fill="oklch(0.15 0.04 160)" />
-            {/* Cypress silhouettes on the near hill */}
-            <path d="M120 178 q4 -26 8 0 Z M132 180 q3 -18 6 0 Z" fill="oklch(0.12 0.03 160)" />
-            <path d="M660 172 q5 -30 10 0 Z M676 175 q3 -20 6 0 Z" fill="oklch(0.12 0.03 160)" />
+          <div style={{ position: 'absolute', right: '10%', top: '12%', width: 260, height: 260, borderRadius: '50%', opacity: 0.5,
+            background: `radial-gradient(circle, ${VERM} 1.4px, transparent 1.6px)`, backgroundSize: '14px 14px',
+            WebkitMaskImage: 'radial-gradient(circle, black 40%, transparent 70%)', maskImage: 'radial-gradient(circle, black 40%, transparent 70%)' }} />
+          <div style={{ position: 'absolute', inset: 26, border: '1px solid oklch(0.30 0.025 55 / 0.25)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: 32, border: '1px solid oklch(0.30 0.025 55 / 0.15)', pointerEvents: 'none' }} />
+        </>
+      )}
+      {s.motif === 'meadow' && (
+        <>
+          <svg viewBox="0 0 800 160" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: '14%', width: '100%', height: 140 }}>
+            <path d="M0 110 Q 160 70 340 104 T 800 92" fill="none" stroke={INK} strokeWidth="1.6" opacity="0.65" />
+            <path d="M0 140 Q 220 108 460 136 T 800 126" fill="none" stroke={INK} strokeWidth="1.2" opacity="0.4" />
           </svg>
-          {/* String lights swagged across the top — the terrace signature */}
-          <svg viewBox="0 0 800 120" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, width: '100%', height: '18%' }}>
-            <path d="M-10 10 Q 200 95 410 38 T 810 55" fill="none" stroke="oklch(0.28 0.03 60)" strokeWidth="1.6" />
-            {[60, 140, 225, 310, 395, 480, 565, 650, 735].map((x, i) => {
-              const y = x < 410 ? 10 + (x / 410) * 60 - Math.pow((x - 205) / 205, 2) * 32 + 32 : 38 + ((x - 410) / 400) * 17 - Math.pow((x - 610) / 200, 2) * 20 + 20;
-              return (
-                <g key={i}>
-                  <line x1={x} y1={y} x2={x} y2={y + 7} stroke="oklch(0.28 0.03 60)" strokeWidth="1" />
-                  <circle cx={x} cy={y + 11} r="4" fill="oklch(0.88 0.12 75)" opacity="0.95">
-                    <animate attributeName="opacity" values="0.95;0.55;0.95" dur={`${3 + i * 0.4}s`} repeatCount="indefinite" />
-                  </circle>
-                  <circle cx={x} cy={y + 11} r="9" fill="oklch(0.85 0.14 70)" opacity="0.25" />
-                </g>
-              );
+          <svg viewBox="0 0 800 90" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, width: '100%', height: 80 }}>
+            <path d="M-10 12 Q 400 78 810 26" fill="none" stroke={INK} strokeWidth="1.3" opacity="0.55" />
+            {[90, 210, 330, 450, 570, 690].map((x, i) => {
+              const y = 12 + Math.sin((x / 810) * Math.PI) * 60;
+              return <circle key={i} cx={x} cy={y + 9} r="4.5" fill={i % 3 === 1 ? VERM : 'oklch(0.72 0.13 75)'} opacity="0.9">
+                <animate attributeName="opacity" values="0.9;0.45;0.9" dur={`${2.8 + i * 0.5}s`} repeatCount="indefinite" />
+              </circle>;
             })}
           </svg>
-          {/* Fireflies over the near hills */}
-          {Array.from({ length: 7 }).map((_, i) => (
-            <div key={'ff' + i} style={{
-              position: 'absolute',
-              left: `${(i * 31 + 9) % 90 + 5}%`, bottom: `${(i * 11) % 22 + 8}%`,
-              width: 3, height: 3, borderRadius: '50%',
-              background: 'oklch(0.9 0.16 105)',
-              boxShadow: '0 0 6px oklch(0.9 0.16 105 / 0.9)',
-              animation: `sc-firefly ${4 + (i % 4)}s ease-in-out ${i * 1.1}s infinite`,
-            }} />
-          ))}
         </>
       )}
-      {/* Vignette */}
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 25%, oklch(0 0 0 / 0.5) 100%)', pointerEvents: 'none' }} />
-      {/* Floor reflection line */}
-      {dark && (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: '22%', height: 1,
-          background: 'linear-gradient(to right, transparent, oklch(0.45 0.06 80 / 0.25) 30%, oklch(0.45 0.06 80 / 0.25) 70%, transparent)' }} />
-      )}
+
+      {/* Soft paper vignette */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse at center, transparent 55%, oklch(0.82 0.02 75 / 0.35) 100%)' }} />
     </div>
   );
 }

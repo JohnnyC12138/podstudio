@@ -640,7 +640,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
                 position: 'absolute', left: '50%', bottom: -40,
                 transform: 'translateX(-50%) rotateX(74deg)',
                 width: 640, height: 240,
-                background: 'radial-gradient(ellipse at center top, oklch(0.22 0.03 75 / 0.9) 0%, transparent 70%)',
+                background: 'radial-gradient(ellipse at center top, oklch(0.90 0.05 75 / 0.85) 0%, transparent 70%)',
                 borderRadius: '50%',
                 pointerEvents: 'none',
                 zIndex: -1,
@@ -661,7 +661,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
               boxShadow: 'var(--sh-md)',
             }}>
               <VideoTile stream={localStream} style={{ transform: 'scaleX(-1)' }} />
-              <span style={{ position: 'absolute', left: 8, bottom: 6, fontSize: 10, color: 'oklch(0.95 0 0)', textShadow: '0 1px 3px oklch(0 0 0/0.7)' }}>You</span>
+              <span style={{ position: 'absolute', left: 8, bottom: 6, fontSize: 10, color: 'var(--fg-0)', textShadow: '0 1px 3px oklch(1 0 0/0.6)' }}>You</span>
             </div>
           )}
 
@@ -670,7 +670,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             <div style={{
               position: 'absolute', left: 24, right: 24, bottom: 110, zIndex: 5,
               padding: '14px 18px',
-              background: 'oklch(0 0 0 / 0.5)',
+              background: 'oklch(0.97 0.008 88 / 0.75)',
               backdropFilter: 'blur(12px)',
               borderRadius: 'var(--r-lg)',
               border: '1px solid oklch(0.78 0.1 82 / 0.2)',
@@ -679,7 +679,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                   <Avatar name={myName} tint="terracotta" size={24} />
-                  <span style={{ fontSize: 12, color: 'oklch(0.95 0 0)', fontWeight: 500 }}>You · live</span>
+                  <span style={{ fontSize: 12, color: 'var(--fg-0)', fontWeight: 500 }}>You · live</span>
                   <span className="mono" style={{ fontSize: 10.5, color: 'oklch(0.72 0 0)' }}>{inputDb !== null ? `${inputDb} dB` : 'no signal'}</span>
                 </div>
                 <RealWaveform analyserRef={analyserRef} active={!paused && micOn} height={40} />
@@ -693,13 +693,13 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             transform: 'translateX(-50%)',
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 10px',
-            background: 'linear-gradient(to bottom, oklch(0.14 0.02 55 / 0.62), oklch(0.10 0.015 55 / 0.82))',
+            background: 'linear-gradient(to bottom, oklch(0.97 0.008 88 / 0.72), oklch(0.94 0.012 86 / 0.9))',
             backdropFilter: 'blur(18px) saturate(1.2)',
             WebkitBackdropFilter: 'blur(18px) saturate(1.2)',
             border: '1px solid oklch(0.78 0.1 82 / 0.22)',
             borderTop: '1px solid oklch(0.78 0.1 82 / 0.38)',
             borderRadius: 999,
-            boxShadow: '0 14px 40px -8px oklch(0 0 0 / 0.7), inset 0 1px 0 oklch(1 0 0 / 0.08), 0 -2px 24px oklch(0.78 0.1 82 / 0.08)',
+            boxShadow: '0 14px 36px -10px oklch(0.3 0.03 60 / 0.28), inset 0 1px 0 oklch(1 0 0 / 0.7)',
             zIndex: 30,
             maxWidth: 'calc(100% - 32px)',
             overflowX: 'auto',
@@ -715,7 +715,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
                     Start
                   </button>
                 ) : (
-                  <span style={{ fontSize: 12, color: 'oklch(0.92 0 0)', padding: '0 10px', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 12, color: 'var(--fg-0)', padding: '0 10px', whiteSpace: 'nowrap' }}>
                     Waiting for the host to start…
                   </span>
                 )}
@@ -732,7 +732,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
                     <I.Stop size={12} /> End
                   </button>
                 ) : (
-                  <span style={{ fontSize: 12, color: 'oklch(0.92 0 0)', padding: '0 10px', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 12, color: 'var(--fg-0)', padding: '0 10px', whiteSpace: 'nowrap' }}>
                     Recording · host ends the session
                   </span>
                 )}
@@ -811,7 +811,7 @@ function ToolbarBtn({ icon: Icon, label, active, danger, onClick }) {
       padding: '6px 12px',
       borderRadius: 22,
       background: active ? 'oklch(0.78 0.1 82 / 0.16)' : 'transparent',
-      color: danger ? 'oklch(0.82 0.16 25)' : active ? 'var(--brass-bright)' : 'oklch(0.92 0 0)',
+      color: danger ? 'oklch(0.82 0.16 25)' : active ? 'var(--brass-bright)' : 'var(--fg-0)',
       transition: 'all 0.15s',
       minWidth: 52,
     }}>
@@ -827,7 +827,7 @@ function GuestSeat({ g, recording, narrow }) {
   return (
     <div style={{
       width: w, height: h, flexShrink: 0,
-      background: 'oklch(0.12 0.018 58 / 0.8)',
+      background: 'oklch(0.985 0.006 90)',
       borderRadius: 'var(--r-md)',
       border: `1px solid ${g.status === 'joined' ? 'oklch(0.78 0.1 82 / 0.45)' : 'var(--line-0)'}`,
       overflow: 'hidden',
@@ -843,7 +843,7 @@ function GuestSeat({ g, recording, narrow }) {
         ) : (
         <div style={{
           position: 'absolute', inset: 0,
-          background: `radial-gradient(ellipse at 50% 40%, ${tint} 0%, oklch(0.14 0.018 58) 75%)`,
+          background: `radial-gradient(ellipse at 50% 40%, ${tint} 0%, oklch(0.92 0.014 84) 75%)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Avatar name={g.name} tint={g.tint} size={56} />
@@ -859,7 +859,7 @@ function GuestSeat({ g, recording, narrow }) {
         position: 'absolute', left: 8, bottom: 8, right: 8,
         display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        <span style={{ fontSize: 11, color: 'oklch(0.95 0 0)', fontWeight: 500 }}>{g.name.split(' ')[0]}</span>
+        <span style={{ fontSize: 11, color: 'var(--fg-0)', fontWeight: 500 }}>{g.name.split(' ')[0]}</span>
         <div style={{ flex: 1 }}>
           {g.status === 'joined' && <LiveLevel stream={g.stream} segments={10} />}
         </div>
@@ -1169,7 +1169,7 @@ function StudioRoomCard({ guests, roomId, isHost, connectionStatus, openInvite }
     : [...guests, { key: 'waiting-guest', name: 'Waiting for guest', role: 'Guest', tint: 'olive', status: 'invited', waiting: true }];
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', background: 'oklch(0.14 0.018 58 / 0.88)', borderColor: 'oklch(0.78 0.1 82 / 0.22)' }}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden', background: 'oklch(0.975 0.008 88 / 0.92)', borderColor: 'var(--line-1)' }}>
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line-0)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--brass-tint)', color: 'var(--brass-bright)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <I.Users size={15} />
@@ -1277,7 +1277,7 @@ function WrapScreen({ elapsed, tracks = [], videos = [], episodeTitle, isHost })
           </p>
 
           {tracks.length > 0 && (
-            <div className="card" style={{ padding: 16, marginTop: 28, marginBottom: 20, background: 'oklch(0.18 0.018 58 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
+            <div className="card" style={{ padding: 16, marginTop: 28, marginBottom: 20, background: 'oklch(0.975 0.008 88 / 0.92)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
               <div className="caps" style={{ marginBottom: 12 }}>Recorded tracks</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {tracks.map((t, i) => (
@@ -1312,7 +1312,7 @@ function WrapScreen({ elapsed, tracks = [], videos = [], episodeTitle, isHost })
           )}
 
           {videos.length > 0 && (
-            <div className="card" style={{ padding: 16, marginBottom: 20, background: 'oklch(0.18 0.018 58 / 0.85)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
+            <div className="card" style={{ padding: 16, marginBottom: 20, background: 'oklch(0.975 0.008 88 / 0.92)', backdropFilter: 'blur(10px)', textAlign: 'left' }}>
               <div className="caps" style={{ marginBottom: 12 }}>Video recordings</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {videos.map((v, i) => (

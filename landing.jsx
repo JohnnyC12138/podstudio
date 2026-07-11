@@ -108,55 +108,80 @@ function LandingPage({ setPage, openInvite }) {
       </div>
 
       {/* Hero — one thought, one action */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 24px 60px', textAlign: 'center' }}>
-        {/* Fanned stamps */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 44, filter: 'drop-shadow(0 10px 18px oklch(0.3 0.04 60 / 0.16))' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 24px 60px', textAlign: 'center' }}
+        onMouseMove={e => {
+          const fan = e.currentTarget.querySelector('[data-fan]');
+          if (!fan) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const dx = (e.clientX - r.left - r.width / 2) / r.width;
+          const dy = (e.clientY - r.top - r.height / 2) / r.height;
+          fan.style.transform = `translate(${dx * 14}px, ${dy * 10}px) rotate(${dx * 2}deg)`;
+        }}
+        onMouseLeave={e => { const fan = e.currentTarget.querySelector('[data-fan]'); if (fan) fan.style.transform = 'none'; }}
+      >
+        {/* Fanned stamps — drop in one by one, then follow the cursor gently */}
+        <div data-fan style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 44, filter: 'drop-shadow(0 10px 18px oklch(0.3 0.04 60 / 0.16))', transition: 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)' }}>
           {stamps.map(({ C, rot, y }, i) => (
-            <div key={i} style={{ transform: `rotate(${rot}deg) translateY(${y}px)`, marginLeft: i > 0 ? -18 : 0, zIndex: i === 2 ? 3 : i, transition: 'transform 0.3s ease' }}
-              onMouseEnter={e => e.currentTarget.style.transform = `rotate(${rot}deg) translateY(${y - 10}px)`}
+            <div key={i} style={{
+              '--stamp-rot': `${rot}deg`, '--stamp-y': `${y}px`,
+              transform: `rotate(${rot}deg) translateY(${y}px)`,
+              marginLeft: i > 0 ? -18 : 0, zIndex: i === 2 ? 3 : i,
+              animation: `stamp-in 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) ${0.15 + i * 0.14}s both`,
+              transition: 'transform 0.3s ease',
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform = `rotate(${rot}deg) translateY(${y - 12}px) scale(1.04)`}
               onMouseLeave={e => e.currentTarget.style.transform = `rotate(${rot}deg) translateY(${y}px)`}>
               <C />
             </div>
           ))}
         </div>
 
-        <h1 className="display" style={{ fontSize: 'clamp(52px, 9vw, 108px)', lineHeight: 0.98, margin: 0, color: ink, fontWeight: 500, letterSpacing: '-0.01em' }}>
-          Podcasts,<br /><em style={{ color: 'oklch(0.58 0.13 45)' }}>made gentle.</em>
+        <h1 className="display rise-in" style={{ fontSize: 'clamp(52px, 9vw, 108px)', lineHeight: 0.98, margin: 0, color: ink, fontWeight: 500, letterSpacing: '-0.01em', animationDelay: '0.55s' }}>
+          Podcasts,<br /><em style={{ color: 'var(--brass)' }}>made gentle.</em>
         </h1>
 
-        <p style={{ fontSize: 15.5, color: inkSoft, marginTop: 26, maxWidth: 400, lineHeight: 1.65 }}>
+        <p className="rise-in" style={{ fontSize: 15.5, color: inkSoft, marginTop: 26, maxWidth: 400, lineHeight: 1.65, animationDelay: '0.72s' }}>
           Record with guests right in the browser. Edit, mix and export — all on your device, nothing uploaded.
         </p>
 
         <button
           onClick={() => setPage('studio')}
-          className="display"
+          className="display rise-in"
           style={{
             marginTop: 36,
             padding: '17px 42px',
             fontSize: 19,
             borderRadius: 999,
-            background: ink,
-            color: 'oklch(0.96 0.015 85)',
+            background: 'var(--brass)',
+            color: 'var(--brass-on)',
             border: 'none', cursor: 'pointer',
-            boxShadow: '0 14px 30px -10px oklch(0.25 0.03 55 / 0.45)',
+            boxShadow: '0 14px 30px -10px oklch(0.52 0.18 35 / 0.55)',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            animationDelay: '0.88s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 20px 38px -10px oklch(0.25 0.03 55 / 0.5)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 14px 30px -10px oklch(0.25 0.03 55 / 0.45)'; }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 20px 40px -10px oklch(0.52 0.18 35 / 0.6)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 14px 30px -10px oklch(0.52 0.18 35 / 0.55)'; }}
         >
           <I.Mic size={16} style={{ marginRight: 10, verticalAlign: '-2px' }} />Start recording
         </button>
 
-        <div style={{ fontSize: 12, color: 'oklch(0.60 0.02 65)', marginTop: 18 }}>
+        <div className="rise-in" style={{ fontSize: 12, color: 'oklch(0.60 0.02 65)', marginTop: 18, animationDelay: '1.02s' }}>
           Free · no account · guests join by link
         </div>
       </div>
 
-      {/* Footer — the whole product in one quiet line */}
-      <div style={{ padding: '0 24px 34px', textAlign: 'center', flexShrink: 0 }}>
-        <div className="mono" style={{ fontSize: 11, color: 'oklch(0.58 0.022 62)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-          Record&nbsp;&nbsp;→&nbsp;&nbsp;Edit&nbsp;&nbsp;→&nbsp;&nbsp;Export&nbsp;&nbsp;·&nbsp;&nbsp;the studio is dark, bring coffee
+      {/* Footer — an endless ticker, like tape running */}
+      <div style={{ padding: '0 0 26px', overflow: 'hidden', flexShrink: 0, maskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)' }}>
+        <div className="mono" style={{ display: 'inline-flex', whiteSpace: 'nowrap', fontSize: 11, color: 'oklch(0.55 0.03 60)', letterSpacing: '0.16em', textTransform: 'uppercase', animation: 'marquee 26s linear infinite' }}>
+          {[0, 1].map(k => (
+            <span key={k} style={{ paddingRight: 0 }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <span key={i}>
+                  &nbsp;&nbsp;Record&nbsp;&nbsp;→&nbsp;&nbsp;Edit&nbsp;&nbsp;→&nbsp;&nbsp;Export&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;<span style={{ color: 'var(--brass)' }}>ON AIR</span>&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;nothing leaves your device&nbsp;&nbsp;&nbsp;·
+                </span>
+              ))}
+            </span>
+          ))}
         </div>
       </div>
     </div>
