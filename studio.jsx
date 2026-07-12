@@ -656,7 +656,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             animation: entrance ? 'camera-push 4s cubic-bezier(0.45, 0, 0.25, 1) 0.4s both' : 'none',
             transformOrigin: '50% 72%',
           }}>
-          <Scene scene={scene} atmo={atmo} />
+          <Scene scene={scene} atmo={atmo} voice={myLevel} />
 
           {/* Pull cord — ceiling hanging cord with vintage bulb */}
           <PullCord
@@ -668,13 +668,14 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
             }}
           />
 
-          {/* 3D desk — perspective container */}
+          {/* 3D desk — perspective container (above the room layers) */}
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'flex-end',
             padding: '32px 20px 0',
             perspective: '1200px',
+            zIndex: 7,
           }}>
 
             {/* Guest tiles — sitting across the desk */}
@@ -698,24 +699,14 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
 
             <div style={{ flex: 1 }} />
 
-            {/* Microphone hero */}
+            {/* Microphone hero — standing clear on the desk, above the toolbar */}
             <div style={{
               position: 'relative',
-              marginBottom: 40,
+              marginBottom: 92,
               transform: 'translateZ(40px)',
+              filter: 'drop-shadow(0 18px 22px oklch(0.25 0.03 55 / 0.30))',
             }}>
-              <MicSculpture size={220} active={phase === 'record' && !paused && micOn} level={level} popFilter={true} onDesk={true} />
-              {/* Desk surface under mic */}
-              <div style={{
-                position: 'absolute', left: '50%', bottom: -40,
-                transform: 'translateX(-50%) rotateX(74deg)',
-                width: 640, height: 240,
-                background: 'radial-gradient(ellipse at center top, oklch(0.90 0.05 75 / 0.85) 0%, transparent 70%)',
-                borderRadius: '50%',
-                pointerEvents: 'none',
-                zIndex: -1,
-              }} />
-              {/* Host name plate removed — it was colliding with the toolbar. The "You · live" chip in the recording banner covers this role. */}
+              <MicSculpture size={196} active={phase === 'record' && !paused && micOn} level={level} popFilter={true} onDesk={false} />
             </div>
           </div>
 

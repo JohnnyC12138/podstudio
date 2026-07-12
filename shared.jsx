@@ -222,7 +222,7 @@ function StepIndicator({ current }) {
 // ─────────────────────────────────────────────────────────────
 // Scene — cinematic background environments (painted with CSS)
 // ─────────────────────────────────────────────────────────────
-function Scene({ scene = 'chicago', atmo = {} }) {
+function Scene({ scene = 'chicago', atmo = {}, voice = 0 }) {
   // ── A real room: desk in the foreground, a deep window onto a living city,
   //    light that actually spills. Nothing is a sticker; everything casts. ──
   const CITIES = {
@@ -385,14 +385,14 @@ function Scene({ scene = 'chicago', atmo = {} }) {
     losangeles: (
       <g>
         {/* Enormous low sun with banded glow */}
-        <circle cx="540" cy="158" r="78" fill="oklch(0.88 0.11 60)" opacity="0.28" />
-        <circle cx="540" cy="158" r="56" fill="oklch(0.90 0.12 62)" opacity="0.5" />
-        <circle cx="540" cy="158" r="40" fill="oklch(0.93 0.12 68)" />
-        <rect x="440" y="176" width="200" height="3" fill={c.sky[3]} opacity="0.55" />
-        <rect x="452" y="188" width="176" height="2.4" fill={c.sky[3]} opacity="0.4" />
-        {/* Hills with house lights */}
-        <path d="M0 240 Q 130 178 300 216 L0 240 Z" fill="oklch(0.33 0.05 100 / 0.75)" />
-        {Array.from({length:8}).map((_,i)=><rect key={i} x={30+i*28} y={206+(i%3)*6} width="2" height="2" fill={LIT} opacity="0.8" />)}
+        <circle cx="180" cy="150" r="80" fill="oklch(0.88 0.11 60)" opacity="0.3" />
+        <circle cx="180" cy="150" r="55" fill="oklch(0.90 0.12 62)" opacity="0.55" />
+        <circle cx="180" cy="150" r="38" fill="oklch(0.94 0.12 70)" />
+        <rect x="90" y="166" width="190" height="3" fill={c.sky[3]} opacity="0.6" />
+        <rect x="104" y="178" width="160" height="2.4" fill={c.sky[3]} opacity="0.45" />
+        {/* Low hills with scattered house lights */}
+        <path d="M0 240 L0 216 Q 150 196 320 226 Q 420 214 530 230 L720 222 L720 240 Z" fill="oklch(0.30 0.05 100 / 0.8)" />
+        {Array.from({length:11}).map((_,i)=><rect key={i} x={36+i*60} y={218+(i%3)*5} width="2" height="2" fill={LIT} opacity="0.85" />)}
         <g>
           <rect x="316" y="106" width="42" height="134" fill={NEAR} /><path d="M316 106 Q337 90 358 106 Z" fill={NEAR} />
           <rect x="316" y="106" width="42" height="6" fill={LIT2} opacity="0.7" />
@@ -496,13 +496,27 @@ function Scene({ scene = 'chicago', atmo = {} }) {
                 style={{ animation: `beacon ${1.2 + i * 0.4}s ease-in-out ${i * 0.3}s infinite` }} />
             ))}
           </svg>
-          {/* Flames — layered, alive */}
-          {[{ x: 84, s: 0.9, d: 0, hue: 45 }, { x: 98, s: 1.35, d: 0.22, hue: 55 }, { x: 114, s: 1.1, d: 0.45, hue: 50 }, { x: 126, s: 0.75, d: 0.6, hue: 42 }].map((f, i) => (
-            <div key={i} style={{ position: 'absolute', left: f.x - 9, bottom: 16, width: 18, height: 44 * f.s,
-              borderRadius: '50% 50% 44% 44% / 70% 70% 30% 30%',
-              background: `linear-gradient(to top, oklch(0.60 0.19 35), oklch(0.76 0.16 ${f.hue}) 50%, oklch(0.90 0.11 85))`,
-              transformOrigin: 'bottom center', mixBlendMode: 'multiply',
-              animation: `flame-dance ${0.8 + i * 0.17}s ease-in-out ${f.d}s infinite`, filter: 'blur(0.5px)' }} />
+          {/* Flames — outer body + bright core; they catch, settle, catch again */}
+          {[{ x: 84, s: 0.9, d: 0, t: 3.1 }, { x: 98, s: 1.4, d: 0.6, t: 2.5 }, { x: 114, s: 1.15, d: 1.3, t: 3.6 }, { x: 126, s: 0.7, d: 0.2, t: 2.9 }].map((f, i) => (
+            <React.Fragment key={i}>
+              <div style={{ position: 'absolute', left: f.x - 10, bottom: 16, width: 20, height: 48 * f.s,
+                borderRadius: '50% 50% 44% 44% / 72% 72% 28% 28%',
+                background: 'linear-gradient(to top, oklch(0.58 0.19 33) 0%, oklch(0.74 0.17 50) 45%, oklch(0.88 0.13 75) 78%, oklch(0.94 0.09 90) 100%)',
+                transformOrigin: 'bottom center',
+                boxShadow: '0 0 18px oklch(0.75 0.16 55 / 0.6)',
+                animation: `flame-burst ${f.t}s ease-in-out ${f.d}s infinite`, filter: 'blur(0.4px)' }} />
+              <div style={{ position: 'absolute', left: f.x - 4.5, bottom: 17, width: 9, height: 26 * f.s,
+                borderRadius: '50% 50% 46% 46% / 70% 70% 30% 30%',
+                background: 'linear-gradient(to top, oklch(0.82 0.14 65), oklch(0.96 0.06 95))',
+                transformOrigin: 'bottom center',
+                animation: `flame-burst ${f.t * 0.82}s ease-in-out ${f.d + 0.3}s infinite` }} />
+            </React.Fragment>
+          ))}
+          {/* Sparks drifting up the flue */}
+          {[0, 1, 2].map(i => (
+            <div key={'sp' + i} style={{ position: 'absolute', left: 92 + i * 14, width: 2.4, height: 2.4, borderRadius: '50%',
+              background: 'oklch(0.85 0.15 70)', '--sway': `${(i - 1) * 10}px`,
+              animation: `spark-rise ${2.2 + i * 0.9}s ease-out ${i * 1.4}s infinite both` }} />
           ))}
           {/* Glow from the box */}
           <div style={{ position: 'absolute', left: 30, bottom: 0, width: 150, height: 110, pointerEvents: 'none',
@@ -560,7 +574,7 @@ function Scene({ scene = 'chicago', atmo = {} }) {
               width: i % 4 === 0 ? 4 : 2.4, height: i % 4 === 0 ? 4 : 2.4, borderRadius: '50%',
               background: 'oklch(0.97 0.005 90)', opacity: 0.9, '--sway': `${(i % 5) * 9 - 18}px`,
               filter: i % 4 === 0 ? 'blur(0.6px)' : 'none',
-              animation: `snow-fall ${4 + (i % 7) * 1.2}s linear ${(i * 0.47) % 5}s infinite` }} />
+              animation: `snow-fall ${4 + (i % 7) * 1.2}s linear ${(i * 0.47) % 5}s infinite both` }} />
           ))}
           {atmo.rain && (
             <>
@@ -568,7 +582,7 @@ function Scene({ scene = 'chicago', atmo = {} }) {
                 <div key={'rn' + i} style={{ position: 'absolute', left: `${(i * 41 + 7) % 97}%`, top: '-10%',
                   width: 1.1, height: 22 + (i % 3) * 8, borderRadius: 2,
                   background: 'linear-gradient(to bottom, transparent, oklch(0.92 0.01 240 / 0.55))',
-                  animation: `rain-streak ${0.9 + (i % 4) * 0.25}s linear ${(i * 0.19) % 1.4}s infinite` }} />
+                  animation: `rain-streak ${0.9 + (i % 4) * 0.25}s linear ${(i * 0.19) % 1.4}s infinite both` }} />
               ))}
               {/* Droplets clinging to the glass */}
               {Array.from({ length: 9 }).map((_, i) => (
@@ -576,7 +590,7 @@ function Scene({ scene = 'chicago', atmo = {} }) {
                   width: 4, height: 6.5, borderRadius: '46% 46% 60% 60%',
                   background: 'linear-gradient(to bottom, oklch(1 0 0 / 0.42), oklch(0.85 0.01 240 / 0.30))',
                   boxShadow: 'inset 0 -1px 1.5px oklch(1 0 0 / 0.5)',
-                  animation: `drop-slide ${5 + (i % 5) * 2.2}s ease-in ${(i * 1.3) % 7}s infinite` }} />
+                  animation: `drop-slide ${5 + (i % 5) * 2.2}s ease-in ${(i * 1.3) % 7}s infinite both` }} />
               ))}
               {/* Rain dims the city slightly */}
               <div style={{ position: 'absolute', inset: 0, background: 'oklch(0.55 0.02 250 / 0.10)' }} />
@@ -637,8 +651,8 @@ function Scene({ scene = 'chicago', atmo = {} }) {
       <div style={{ position: 'absolute', right: '21%', bottom: '13.5%', width: 74, height: 70, zIndex: 6 }}>
         {atmo.coffee && [0, 1, 2].map(i => (
           <div key={i} style={{ position: 'absolute', left: 22 + i * 9, bottom: 44, width: 7, height: 18,
-            borderRadius: '50%', background: 'oklch(0.94 0.008 88 / 0.65)', filter: 'blur(3px)',
-            animation: `steam-rise ${2.4 + i * 0.5}s ease-out ${i * 0.7}s infinite` }} />
+            borderRadius: '50%', background: `oklch(0.94 0.008 88 / ${0.5 + Math.min(voice, 1) * 0.4})`, filter: 'blur(3px)',
+            animation: `steam-rise ${2.4 + i * 0.5}s ease-out ${i * 0.7}s infinite`, transition: 'background 0.2s' }} />
         ))}
         <svg viewBox="0 0 74 70" width="74" height="70">
           <ellipse cx="37" cy="62" rx="30" ry="5.5" fill="oklch(0.20 0.03 50 / 0.35)" />
@@ -670,8 +684,8 @@ function Scene({ scene = 'chicago', atmo = {} }) {
       <div style={{ position: 'absolute', left: '6%', bottom: '12.5%', width: 130, height: 170, zIndex: 6 }}>
         {lampOn && (
           <div style={{ position: 'absolute', left: 6, bottom: -14, width: 190, height: 120, pointerEvents: 'none',
-            background: 'radial-gradient(ellipse at 34% 20%, oklch(0.92 0.09 85 / 0.55), transparent 68%)',
-            filter: 'blur(4px)', animation: 'lamp-warmth 3.2s ease-in-out infinite' }} />
+            background: `radial-gradient(ellipse at 34% 20%, oklch(0.92 0.09 85 / ${0.45 + Math.min(voice, 1) * 0.45}), transparent 68%)`,
+            filter: 'blur(4px)', animation: 'lamp-warmth 3.2s ease-in-out infinite', transition: 'background 0.18s' }} />
         )}
         <svg viewBox="0 0 130 170" width="130" height="170">
           <ellipse cx="46" cy="160" rx="30" ry="5.5" fill="oklch(0.20 0.03 50 / 0.4)" />
@@ -783,102 +797,99 @@ function MicSculpture({ size = 280, active = true, level = 0.6, popFilter = fals
 
 // Extracted mic SVG (so we can reuse for reflection)
 function MicSvg({ active = true }) {
+  // PS-47 — a modern heirloom: slim capsule, hairline yoke, weighted base.
   return (
     <svg viewBox="0 0 200 280" width="100%" height="100%">
       <defs>
-        {/* Brushed brass with a specular sweep */}
-        <linearGradient id="brass-g" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="oklch(0.90 0.10 84)" />
-          <stop offset="30%" stopColor="oklch(0.76 0.10 80)" />
-          <stop offset="55%" stopColor="oklch(0.58 0.08 78)" />
-          <stop offset="80%" stopColor="oklch(0.42 0.06 76)" />
-          <stop offset="100%" stopColor="oklch(0.34 0.05 75)" />
+        <linearGradient id="ps-brass" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="oklch(0.42 0.06 78)" />
+          <stop offset="26%" stopColor="oklch(0.88 0.10 84)" />
+          <stop offset="46%" stopColor="oklch(0.72 0.09 80)" />
+          <stop offset="72%" stopColor="oklch(0.52 0.07 78)" />
+          <stop offset="100%" stopColor="oklch(0.36 0.05 76)" />
         </linearGradient>
-        <linearGradient id="brass-hi" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(0.30 0.03 80)" />
-          <stop offset="35%" stopColor="oklch(0.95 0.09 85)" />
-          <stop offset="52%" stopColor="oklch(0.82 0.10 82)" />
-          <stop offset="75%" stopColor="oklch(0.52 0.06 78)" />
-          <stop offset="100%" stopColor="oklch(0.33 0.04 78)" />
+        <linearGradient id="ps-body" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="oklch(0.20 0.02 70)" />
+          <stop offset="30%" stopColor="oklch(0.34 0.03 74)" />
+          <stop offset="52%" stopColor="oklch(0.27 0.025 72)" />
+          <stop offset="100%" stopColor="oklch(0.15 0.018 70)" />
         </linearGradient>
-        <linearGradient id="mic-body" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(0.16 0.02 75)" />
-          <stop offset="30%" stopColor="oklch(0.38 0.04 78)" />
-          <stop offset="50%" stopColor="oklch(0.30 0.03 78)" />
-          <stop offset="100%" stopColor="oklch(0.12 0.015 75)" />
-        </linearGradient>
-        <radialGradient id="grille-g" cx="0.38" cy="0.30" r="0.85">
-          <stop offset="0%" stopColor="oklch(0.50 0.06 80)" />
-          <stop offset="55%" stopColor="oklch(0.30 0.04 78)" />
-          <stop offset="100%" stopColor="oklch(0.16 0.03 76)" />
+        <radialGradient id="ps-grille" cx="0.36" cy="0.26" r="0.9">
+          <stop offset="0%" stopColor="oklch(0.44 0.05 78)" />
+          <stop offset="55%" stopColor="oklch(0.27 0.035 75)" />
+          <stop offset="100%" stopColor="oklch(0.15 0.025 72)" />
         </radialGradient>
-        <radialGradient id="grille-spec" cx="0.34" cy="0.24" r="0.5">
-          <stop offset="0%" stopColor="oklch(0.95 0.05 90 / 0.5)" />
-          <stop offset="100%" stopColor="transparent" />
-        </radialGradient>
-        <pattern id="mic-mesh" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse">
-          <circle cx="1.2" cy="1.2" r="0.85" fill="oklch(0.10 0.015 75)" />
-          <circle cx="3.7" cy="3.7" r="0.85" fill="oklch(0.10 0.015 75)" />
-          <circle cx="1.0" cy="1.0" r="0.35" fill="oklch(0.62 0.07 82)" />
-          <circle cx="3.5" cy="3.5" r="0.35" fill="oklch(0.55 0.06 80)" />
+        <pattern id="ps-mesh" x="0" y="0" width="4.2" height="4.2" patternUnits="userSpaceOnUse">
+          <circle cx="1.05" cy="1.05" r="0.72" fill="oklch(0.11 0.015 72)" />
+          <circle cx="3.15" cy="3.15" r="0.72" fill="oklch(0.11 0.015 72)" />
+          <circle cx="0.9" cy="0.9" r="0.3" fill="oklch(0.58 0.06 80)" />
+          <circle cx="3.0" cy="3.0" r="0.3" fill="oklch(0.50 0.05 78)" />
         </pattern>
-        <linearGradient id="stand-g" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(0.14 0.015 75)" />
-          <stop offset="42%" stopColor="oklch(0.42 0.04 78)" />
-          <stop offset="58%" stopColor="oklch(0.30 0.03 78)" />
-          <stop offset="100%" stopColor="oklch(0.10 0.012 75)" />
+        <linearGradient id="ps-stem" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="oklch(0.16 0.015 72)" />
+          <stop offset="45%" stopColor="oklch(0.44 0.04 76)" />
+          <stop offset="60%" stopColor="oklch(0.30 0.03 74)" />
+          <stop offset="100%" stopColor="oklch(0.12 0.012 70)" />
         </linearGradient>
+        <radialGradient id="ps-base" cx="0.5" cy="0.32" r="0.75">
+          <stop offset="0%" stopColor="oklch(0.36 0.03 74)" />
+          <stop offset="70%" stopColor="oklch(0.22 0.022 72)" />
+          <stop offset="100%" stopColor="oklch(0.14 0.015 70)" />
+        </radialGradient>
       </defs>
 
-      {/* Ground shadow — soft, doubled */}
-      <ellipse cx="100" cy="268" rx="56" ry="8" fill="oklch(0.35 0.03 60)" opacity="0.28" />
-      <ellipse cx="100" cy="267" rx="34" ry="5" fill="oklch(0.30 0.03 60)" opacity="0.3" />
+      {/* Contact shadow */}
+      <ellipse cx="100" cy="269" rx="50" ry="6.5" fill="oklch(0.32 0.03 60)" opacity="0.30" />
+      <ellipse cx="100" cy="268" rx="28" ry="3.8" fill="oklch(0.26 0.03 58)" opacity="0.35" />
 
-      {/* Stand column — tapered with knurled collar */}
-      <path d="M96 196 L94 262 L106 262 L104 196 Z" fill="url(#stand-g)" />
-      <rect x="92" y="216" width="16" height="7" rx="2.5" fill="url(#brass-hi)" />
-      <g stroke="oklch(0.30 0.03 78)" strokeWidth="0.7" opacity="0.7">
-        {[94.5,97,99.5,102,104.5].map((x,i)=><line key={i} x1={x} y1="217" x2={x} y2="222" />)}
-      </g>
-      {/* Base disc */}
-      <ellipse cx="100" cy="262" rx="30" ry="6.5" fill="url(#brass-g)" />
-      <ellipse cx="100" cy="260.5" rx="30" ry="6" fill="oklch(0.20 0.02 76)" />
-      <ellipse cx="100" cy="260" rx="22" ry="4" fill="url(#brass-hi)" opacity="0.5" />
+      {/* Weighted base — low dome with brass foot ring */}
+      <ellipse cx="100" cy="262" rx="34" ry="8" fill="url(#ps-base)" />
+      <path d="M66 262 A34 8 0 0 1 134 262 L134 258 A34 8 0 0 0 66 258 Z" fill="oklch(0.12 0.014 70)" />
+      <ellipse cx="100" cy="256" rx="26" ry="5.5" fill="url(#ps-base)" />
+      <ellipse cx="100" cy="254.6" rx="26" ry="5" fill="none" stroke="oklch(0.72 0.09 82 / 0.8)" strokeWidth="1.1" />
+      <ellipse cx="92" cy="253" rx="8" ry="1.6" fill="oklch(0.62 0.06 80 / 0.5)" />
 
-      {/* Shock-mount yoke */}
-      <path d="M 50 138 Q 50 182 80 190 L 120 190 Q 150 182 150 138" stroke="url(#brass-hi)" strokeWidth="7" fill="none" strokeLinecap="round" />
-      <path d="M 50 138 Q 50 182 80 190 L 120 190 Q 150 182 150 138" stroke="oklch(0.95 0.06 88 / 0.5)" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-      <circle cx="50" cy="136" r="5.5" fill="url(#brass-g)" stroke="oklch(0.34 0.04 78)" strokeWidth="1" />
-      <circle cx="150" cy="136" r="5.5" fill="url(#brass-g)" stroke="oklch(0.34 0.04 78)" strokeWidth="1" />
-      <circle cx="48.5" cy="134.5" r="1.8" fill="oklch(0.95 0.06 88 / 0.7)" />
-      <circle cx="148.5" cy="134.5" r="1.8" fill="oklch(0.95 0.06 88 / 0.7)" />
-      {/* Yoke-to-stand joint */}
-      <rect x="92" y="188" width="16" height="10" rx="3" fill="url(#brass-g)" stroke="oklch(0.32 0.04 78)" strokeWidth="0.8" />
+      {/* Stem — slender, with brass collar */}
+      <rect x="96.5" y="196" width="7" height="60" rx="3" fill="url(#ps-stem)" />
+      <rect x="94" y="222" width="12" height="5.5" rx="2.2" fill="url(#ps-brass)" />
+      <line x1="98.2" y1="196" x2="98.2" y2="256" stroke="oklch(0.62 0.06 80 / 0.5)" strokeWidth="0.8" />
 
-      {/* Capsule body — brass ring frame */}
-      <rect x="54" y="50" width="92" height="126" rx="46" fill="url(#brass-g)" stroke="oklch(0.32 0.04 78)" strokeWidth="1.5" />
-      {/* Inner bezel shadow */}
-      <rect x="60" y="56" width="80" height="114" rx="40" fill="oklch(0.24 0.03 76)" />
+      {/* Yoke — hairline U with pivot dots */}
+      <path d="M 56 132 Q 56 186 100 193 Q 144 186 144 132"
+        stroke="url(#ps-brass)" strokeWidth="4.4" fill="none" strokeLinecap="round" />
+      <path d="M 56 132 Q 56 186 100 193 Q 144 186 144 132"
+        stroke="oklch(0.95 0.05 88 / 0.5)" strokeWidth="1" fill="none" strokeLinecap="round" />
+      <circle cx="56" cy="130" r="4.6" fill="url(#ps-brass)" />
+      <circle cx="144" cy="130" r="4.6" fill="url(#ps-brass)" />
+      <circle cx="54.6" cy="128.6" r="1.4" fill="oklch(0.96 0.05 90 / 0.85)" />
+      <circle cx="142.6" cy="128.6" r="1.4" fill="oklch(0.96 0.05 90 / 0.85)" />
+      {/* Yoke meets stem */}
+      <rect x="93" y="190" width="14" height="8" rx="3.5" fill="url(#ps-brass)" />
+
+      {/* Capsule — slim, tall, quiet */}
+      <rect x="62" y="42" width="76" height="140" rx="38" fill="url(#ps-body)" />
+      <rect x="62" y="42" width="76" height="140" rx="38" fill="none" stroke="oklch(0.46 0.05 78)" strokeWidth="1.2" />
+      {/* Top cap + bottom cap in brass */}
+      <path d="M62 82 L62 80 A38 38 0 0 1 138 80 L138 82 Z" fill="none" />
+      <path d="M 66 66 A 34 34 0 0 1 134 66 L 134 74 L 66 74 Z" fill="url(#ps-brass)" opacity="0.9" />
+      <rect x="66" y="150" width="68" height="7" fill="url(#ps-brass)" opacity="0.9" />
       {/* Grille */}
-      <rect x="63" y="59" width="74" height="108" rx="37" fill="url(#grille-g)" />
-      <rect x="63" y="59" width="74" height="108" rx="37" fill="url(#mic-mesh)" opacity="0.9" />
-      {/* Center seam band */}
-      <rect x="63" y="108" width="74" height="9" rx="4.5" fill="url(#brass-hi)" opacity="0.9" />
-      <rect x="63" y="110.5" width="74" height="1.2" fill="oklch(0.95 0.07 88 / 0.6)" />
-      {/* Specular bloom on the mesh */}
-      <rect x="63" y="59" width="74" height="108" rx="37" fill="url(#grille-spec)" />
-      {/* Rim light along the left edge */}
-      <path d="M 60 88 Q 58 113 60 140" stroke="oklch(0.96 0.05 90 / 0.55)" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <rect x="68" y="78" width="64" height="68" rx="8" fill="url(#ps-grille)" />
+      <rect x="68" y="78" width="64" height="68" rx="8" fill="url(#ps-mesh)" opacity="0.95" />
+      <rect x="68" y="78" width="64" height="68" rx="8" fill="none" stroke="oklch(0.50 0.05 78 / 0.7)" strokeWidth="1" />
+      {/* Specular sweep on the glass-smooth body */}
+      <path d="M 72 50 Q 68 110 72 174" stroke="oklch(0.96 0.05 90 / 0.4)" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <ellipse cx="86" cy="94" rx="10" ry="16" fill="oklch(1 0 0 / 0.10)" />
 
-      {/* Badge */}
-      <rect x="82" y="146" width="36" height="13" rx="3" fill="oklch(0.20 0.025 78)" stroke="oklch(0.62 0.08 82)" strokeWidth="0.9" />
-      <text x="100" y="155.5" textAnchor="middle" fontSize="7" fontFamily="monospace" fill="oklch(0.78 0.09 82)" letterSpacing="1.5">PS·47</text>
+      {/* Badge — engraved, small */}
+      <text x="100" y="169" textAnchor="middle" fontSize="8" fontFamily="Georgia, serif" fontStyle="italic"
+        fill="oklch(0.74 0.09 82)" letterSpacing="1.2">PS·47</text>
 
-      {/* Status jewel */}
-      <circle cx="100" cy="182" r="3.4"
-        fill={active ? 'oklch(0.66 0.21 33)' : 'oklch(0.42 0.03 78)'}
-        style={{ filter: active ? 'drop-shadow(0 0 5px oklch(0.66 0.21 33))' : 'none' }} />
-      <circle cx="99" cy="181" r="1.1" fill={active ? 'oklch(0.9 0.08 45 / 0.9)' : 'oklch(0.6 0.02 78 / 0.5)'} />
+      {/* Status jewel — recessed */}
+      <circle cx="100" cy="176" r="2.6" fill="oklch(0.12 0.015 70)" />
+      <circle cx="100" cy="176" r="1.9"
+        fill={active ? 'oklch(0.66 0.21 33)' : 'oklch(0.40 0.03 76)'}
+        style={{ filter: active ? 'drop-shadow(0 0 4px oklch(0.66 0.21 33))' : 'none' }} />
     </svg>
   );
 }

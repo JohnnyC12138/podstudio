@@ -504,14 +504,14 @@ button { background: none; border: none; cursor: pointer; padding: 0; }
   100% { opacity: 0; letter-spacing: 0.3em; transform: translateY(-6px); }
 }
 @keyframes snow-fall {
-  0%   { transform: translateY(-8%) translateX(0); opacity: 0; }
+  0%   { top: -6%; transform: translateX(0); opacity: 0; }
   8%   { opacity: 0.9; }
-  100% { transform: translateY(108%) translateX(var(--sway, 14px)); opacity: 0.75; }
+  100% { top: 106%; transform: translateX(var(--sway, 14px)); opacity: 0.8; }
 }
 @keyframes leaf-fall {
-  0%   { transform: translateY(-8%) translateX(0) rotate(0deg); opacity: 0; }
+  0%   { top: -8%; transform: translateX(0) rotate(0deg); opacity: 0; }
   8%   { opacity: 0.95; }
-  100% { transform: translateY(112%) translateX(var(--sway, -30px)) rotate(var(--spin, 280deg)); opacity: 0.85; }
+  100% { top: 110%; transform: translateX(var(--sway, -30px)) rotate(var(--spin, 280deg)); opacity: 0.85; }
 }
 @keyframes flame-dance {
   0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.95; }
@@ -531,9 +531,9 @@ button { background: none; border: none; cursor: pointer; padding: 0; }
 
 /* Room realism: rain, steam, beacons, curtain sway */
 @keyframes rain-streak {
-  0% { transform: translateY(-12%); opacity: 0; }
-  10% { opacity: 0.7; }
-  100% { transform: translateY(115%); opacity: 0.5; }
+  0% { top: -16%; opacity: 0; }
+  10% { opacity: 0.75; }
+  100% { top: 112%; opacity: 0.5; }
 }
 @keyframes drop-slide {
   0% { transform: translateY(0); opacity: 0; }
@@ -552,3 +552,21 @@ button { background: none; border: none; cursor: pointer; padding: 0; }
   50% { transform: skewX(0.8deg); }
 }
 @keyframes lamp-warmth { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+
+
+/* Fire that breathes — catches, settles, flares again */
+@keyframes flame-burst {
+  0%, 100% { transform: scaleY(0.72) scaleX(1.05); opacity: 0.7; }
+  10% { transform: scaleY(1.18) scaleX(0.92); opacity: 1; }
+  22% { transform: scaleY(0.9) scaleX(1); opacity: 0.88; }
+  34% { transform: scaleY(1.32) scaleX(0.88); opacity: 1; }
+  48% { transform: scaleY(0.62) scaleX(1.1); opacity: 0.55; }
+  62% { transform: scaleY(1.08) scaleX(0.95); opacity: 0.95; }
+  78% { transform: scaleY(0.8) scaleX(1.02); opacity: 0.75; }
+  90% { transform: scaleY(1.15) scaleX(0.9); opacity: 1; }
+}
+@keyframes spark-rise {
+  0% { top: 78%; opacity: 0; transform: translateX(0); }
+  15% { opacity: 0.95; }
+  100% { top: 8%; opacity: 0; transform: translateX(var(--sway, 8px)); }
+}
