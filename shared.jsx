@@ -223,122 +223,192 @@ function StepIndicator({ current }) {
 // Scene — cinematic background environments (painted with CSS)
 // ─────────────────────────────────────────────────────────────
 function Scene({ scene = 'chicago', atmo = {} }) {
-  // A paper room with one enormous window — outside, a real city at dusk.
-  // The room is a letter; the world outside is alive.
+  // ── A real room: desk in the foreground, a deep window onto a living city,
+  //    light that actually spills. Nothing is a sticker; everything casts. ──
   const CITIES = {
-    chicago:      { name: 'Chicago',       sky: ['oklch(0.38 0.08 265)', 'oklch(0.62 0.12 50)', 'oklch(0.55 0.15 35)'], water: true,  moon: false },
-    newyork:      { name: 'New York',      sky: ['oklch(0.30 0.06 280)', 'oklch(0.45 0.10 320)', 'oklch(0.62 0.13 45)'], water: false, moon: true },
-    hongkong:     { name: 'Hong Kong',     sky: ['oklch(0.26 0.07 290)', 'oklch(0.42 0.12 335)', 'oklch(0.50 0.15 15)'], water: true,  moon: true },
-    losangeles:   { name: 'Los Angeles',   sky: ['oklch(0.55 0.09 260)', 'oklch(0.74 0.12 60)',  'oklch(0.66 0.16 40)'], water: false, moon: false },
-    sanfrancisco: { name: 'San Francisco', sky: ['oklch(0.50 0.06 250)', 'oklch(0.72 0.08 70)',  'oklch(0.63 0.10 50)'], water: true,  moon: false },
+    chicago: {
+      name: 'Chicago',
+      sky: ['oklch(0.32 0.06 265)', 'oklch(0.46 0.10 300)', 'oklch(0.68 0.14 55)', 'oklch(0.60 0.16 40)'],
+      glow: 'oklch(0.62 0.14 45)', water: true, moon: false,
+    },
+    newyork: {
+      name: 'New York',
+      sky: ['oklch(0.24 0.05 275)', 'oklch(0.34 0.08 310)', 'oklch(0.52 0.11 350)', 'oklch(0.60 0.13 45)'],
+      glow: 'oklch(0.55 0.12 350)', water: false, moon: true,
+    },
+    hongkong: {
+      name: 'Hong Kong',
+      sky: ['oklch(0.22 0.05 290)', 'oklch(0.32 0.09 330)', 'oklch(0.45 0.13 05)', 'oklch(0.50 0.15 25)'],
+      glow: 'oklch(0.48 0.13 05)', water: true, moon: true,
+    },
+    losangeles: {
+      name: 'Los Angeles',
+      sky: ['oklch(0.48 0.08 260)', 'oklch(0.66 0.11 40)', 'oklch(0.78 0.13 60)', 'oklch(0.72 0.15 45)'],
+      glow: 'oklch(0.74 0.13 55)', water: false, moon: false,
+    },
+    sanfrancisco: {
+      name: 'San Francisco',
+      sky: ['oklch(0.44 0.05 255)', 'oklch(0.58 0.07 80)', 'oklch(0.72 0.09 70)', 'oklch(0.64 0.11 50)'],
+      glow: 'oklch(0.66 0.10 65)', water: true, moon: false,
+    },
   };
   const c = CITIES[scene] || CITIES.chicago;
-  const INKB = 'oklch(0.22 0.04 270)';   // building ink
-  const INKB2 = 'oklch(0.30 0.05 268)';  // nearer building ink
-  const LIT = 'oklch(0.85 0.12 75)';     // lit window amber
 
-  // Deterministic lit windows inside a building rect
-  const Windows = ({ x, y, w, h, seed = 1, step = 7 }) => {
-    const dots = [];
-    let k = seed;
-    for (let wy = y + 4; wy < y + h - 3; wy += step) {
-      for (let wx = x + 3; wx < x + w - 3; wx += step) {
+  // Depth palette — atmospheric perspective (far = pale, near = ink)
+  const FAR  = 'oklch(0.45 0.045 280 / 0.55)';
+  const MID  = 'oklch(0.31 0.05 275)';
+  const NEAR = 'oklch(0.20 0.04 270)';
+  const LIT  = 'oklch(0.86 0.12 78)';
+  const LIT2 = 'oklch(0.78 0.10 60)';
+
+  // Deterministic warm window grid for a building face
+  const Win = ({ x, y, w, h, seed = 1, step = 6.5, glowRatio = 2 }) => {
+    const dots = []; let k = seed;
+    for (let wy = y + 3; wy < y + h - 3; wy += step) {
+      for (let wx = x + 2.5; wx < x + w - 2.5; wx += step) {
         k = (k * 1103515245 + 12345) % 2147483648;
-        if (k % 5 < 2) dots.push(<rect key={`${wx}-${wy}`} x={wx} y={wy} width="2" height="2.6" fill={LIT} opacity={0.55 + (k % 40) / 100} />);
+        if (k % 6 < glowRatio) dots.push(
+          <rect key={`${wx}-${wy}`} x={wx} y={wy} width="2.1" height="2.6"
+            fill={k % 11 === 0 ? LIT2 : LIT} opacity={0.35 + (k % 55) / 100} />);
       }
     }
     return <g>{dots}</g>;
   };
+  // Rooftop aircraft beacon
+  const Beacon = ({ x, y, d = 0 }) => (
+    <circle cx={x} cy={y} r="1.8" fill="oklch(0.62 0.22 25)"
+      style={{ animation: `beacon ${1.6 + d}s ease-in-out ${d}s infinite` }} />
+  );
 
-  // City skylines — landmark silhouettes, drawn in ink against the dusk
   const skylines = {
     chicago: (
       <g>
-        {/* Willis Tower */}
-        <rect x="330" y="60" width="44" height="180" fill={INKB} /><rect x="338" y="40" width="28" height="24" fill={INKB} />
-        <line x1="342" y1="12" x2="342" y2="40" stroke={INKB} strokeWidth="2.5" /><line x1="362" y1="4" x2="362" y2="40" stroke={INKB} strokeWidth="2.5" />
-        <Windows x={330} y={62} w={44} h={176} seed={7} />
-        {/* Hancock — tapered with X bracing */}
-        <path d="M470 240 L478 70 L512 70 L520 240 Z" fill={INKB} />
-        <line x1="494" y1="46" x2="494" y2="70" stroke={INKB} strokeWidth="2.5" /><line x1="504" y1="52" x2="504" y2="70" stroke={INKB} strokeWidth="2" />
-        <g stroke="oklch(0.40 0.05 268)" strokeWidth="1.2" opacity="0.8">
-          <line x1="480" y1="90" x2="512" y2="130" /><line x1="512" y1="90" x2="480" y2="130" />
-          <line x1="480" y1="130" x2="512" y2="170" /><line x1="512" y1="130" x2="480" y2="170" />
-          <line x1="481" y1="170" x2="513" y2="210" /><line x1="513" y1="170" x2="481" y2="210" />
+        <path d="M0 240 L0 168 L36 168 L36 148 L74 148 L74 176 L120 176 L120 156 L168 156 L168 182 L230 182 L230 150 L300 150 L300 190 L400 190 L400 160 L470 160 L470 186 L560 186 L560 152 L640 152 L640 178 L720 178 L720 240 Z" fill={FAR} />
+        <g>
+          <rect x="120" y="118" width="52" height="122" fill={MID} /><Win x={120} y={120} w={52} h={118} seed={3} />
+          <rect x="205" y="132" width="44" height="108" fill={MID} /><Win x={205} y={134} w={44} h={104} seed={9} />
+          <rect x="580" y="124" width="48" height="116" fill={MID} /><Win x={580} y={126} w={48} h={112} seed={17} />
+          <rect x="655" y="146" width="40" height="94" fill={MID} /><Win x={655} y={148} w={40} h={90} seed={19} />
         </g>
-        <Windows x={478} y={74} w={36} h={162} seed={13} step={8} />
-        <rect x="180" y="130" width="52" height="110" fill={INKB2} /><Windows x={180} y={132} w={52} h={106} seed={3} />
-        <rect x="252" y="150" width="40" height="90" fill={INKB} /><Windows x={252} y={152} w={40} h={86} seed={9} />
-        <rect x="396" y="120" width="46" height="120" fill={INKB2} /><Windows x={396} y={122} w={46} h={116} seed={5} />
-        <rect x="120" y="168" width="44" height="72" fill={INKB} /><Windows x={120} y={170} w={44} h={68} seed={11} />
-        <rect x="552" y="140" width="50" height="100" fill={INKB2} /><Windows x={552} y={142} w={50} h={96} seed={17} />
-        <rect x="622" y="170" width="40" height="70" fill={INKB} /><Windows x={622} y={172} w={40} h={66} seed={19} />
+        {/* Willis Tower — tiered, two antennas, beacons */}
+        <g>
+          <rect x="306" y="64" width="52" height="176" fill={NEAR} />
+          <rect x="314" y="44" width="36" height="22" fill={NEAR} />
+          <rect x="322" y="30" width="20" height="16" fill={NEAR} />
+          <line x1="327" y1="2" x2="327" y2="30" stroke={NEAR} strokeWidth="2.6" />
+          <line x1="339" y1="-6" x2="339" y2="30" stroke={NEAR} strokeWidth="2.6" />
+          <Beacon x={327} y={4} d={0} /><Beacon x={339} y={-4} d={0.7} />
+          <Win x={306} y={66} w={52} h={172} seed={7} step={6} glowRatio={2} />
+          <rect x="306" y="64" width="5" height="176" fill="oklch(0.55 0.10 45 / 0.35)" />
+        </g>
+        {/* Hancock — taper + X-bracing + antennas */}
+        <g>
+          <path d="M468 240 L476 74 L520 74 L528 240 Z" fill={NEAR} />
+          <line x1="490" y1="46" x2="490" y2="74" stroke={NEAR} strokeWidth="2.6" />
+          <line x1="506" y1="52" x2="506" y2="74" stroke={NEAR} strokeWidth="2.2" />
+          <Beacon x={490} y={48} d={0.4} /><Beacon x={506} y={54} d={1.1} />
+          <g stroke="oklch(0.42 0.05 270)" strokeWidth="1.3" opacity="0.9">
+            <line x1="478" y1="96" x2="518" y2="140" /><line x1="518" y1="96" x2="478" y2="140" />
+            <line x1="478" y1="140" x2="518" y2="184" /><line x1="518" y1="140" x2="478" y2="184" />
+            <line x1="479" y1="184" x2="519" y2="228" /><line x1="519" y1="184" x2="479" y2="228" />
+          </g>
+          <Win x={478} y={80} w={40} h={156} seed={13} step={7.5} />
+          <path d="M468 240 L476 74 L481 74 L474 240 Z" fill="oklch(0.55 0.10 45 / 0.3)" />
+        </g>
       </g>
     ),
     newyork: (
       <g>
-        {/* Empire State — setbacks + spire */}
-        <rect x="300" y="150" width="70" height="90" fill={INKB} /><rect x="312" y="110" width="46" height="42" fill={INKB} /><rect x="322" y="72" width="26" height="40" fill={INKB} />
-        <line x1="335" y1="34" x2="335" y2="72" stroke={INKB} strokeWidth="3" /><circle cx="335" cy="32" r="2" fill={LIT} />
-        <Windows x={302} y={152} w={66} h={86} seed={21} /><Windows x={314} y={112} w={42} h={38} seed={23} step={6} />
-        {/* Chrysler — crown arcs */}
-        <rect x="440" y="130" width="46" height="110" fill={INKB2} />
-        <path d="M440 130 Q463 92 486 130 Z" fill={INKB2} /><path d="M448 124 Q463 98 478 124 Z" fill="oklch(0.42 0.06 268)" />
-        <line x1="463" y1="66" x2="463" y2="98" stroke={INKB2} strokeWidth="2.5" />
-        <Windows x={442} y={134} w={42} h={104} seed={27} step={6} />
-        {/* One WTC */}
-        <path d="M150 240 L156 96 L196 96 L202 240 Z" fill={INKB} /><line x1="176" y1="56" x2="176" y2="96" stroke={INKB} strokeWidth="2.5" />
-        <Windows x={158} y={100} w={38} h={136} seed={31} step={8} />
-        <rect x="240" y="170" width="42" height="70" fill={INKB2} /><Windows x={240} y={172} w={42} h={66} seed={33} />
-        <rect x="516" y="158" width="48" height="82" fill={INKB} /><Windows x={516} y={160} w={48} h={78} seed={37} />
-        <rect x="590" y="140" width="38" height="100" fill={INKB2} /><Windows x={590} y={142} w={38} h={96} seed={39} />
-        <rect x="100" y="186" width="36" height="54" fill={INKB2} /><Windows x={100} y={188} w={36} h={50} seed={41} />
+        <path d="M0 240 L0 172 L40 172 L40 152 L90 152 L90 178 L140 178 L140 158 L200 158 L200 184 L260 184 L260 148 L330 148 L330 186 L420 186 L420 156 L500 156 L500 180 L570 180 L570 148 L650 148 L650 176 L720 176 L720 240 Z" fill={FAR} />
+        <g>
+          <path d="M120 240 L126 108 L166 108 L172 240 Z" fill={MID} /><line x1="146" y1="76" x2="146" y2="108" stroke={MID} strokeWidth="2.4" /><Beacon x={146} y={78} d={0.2} />
+          <Win x={128} y={112} w={38} h={124} seed={31} step={7} />
+          <rect x="222" y="152" width="46" height="88" fill={MID} /><Win x={222} y={154} w={46} h={84} seed={33} />
+          <rect x="540" y="140" width="44" height="100" fill={MID} /><Win x={540} y={142} w={44} h={96} seed={37} />
+          <rect x="618" y="126" width="40" height="114" fill={MID} /><Win x={618} y={128} w={40} h={110} seed={39} />
+        </g>
+        {/* Empire State — setbacks, lit crown, needle */}
+        <g>
+          <rect x="300" y="146" width="76" height="94" fill={NEAR} />
+          <rect x="312" y="104" width="52" height="44" fill={NEAR} />
+          <rect x="324" y="66" width="28" height="40" fill={NEAR} />
+          <rect x="324" y="66" width="28" height="10" fill={LIT2} opacity="0.85" />
+          <line x1="338" y1="28" x2="338" y2="66" stroke={NEAR} strokeWidth="3" />
+          <Beacon x={338} y={30} d={0} />
+          <Win x={302} y={148} w={72} h={90} seed={21} /><Win x={314} y={106} w={48} h={40} seed={23} step={5.5} />
+          <rect x="300" y="146" width="5" height="94" fill="oklch(0.52 0.10 350 / 0.4)" />
+        </g>
+        {/* Chrysler — glowing crown arches */}
+        <g>
+          <rect x="452" y="128" width="48" height="112" fill={NEAR} />
+          <path d="M452 128 Q476 88 500 128 Z" fill={NEAR} />
+          <path d="M460 122 Q476 96 492 122 Z" fill="none" stroke={LIT} strokeWidth="1.4" opacity="0.9" />
+          <path d="M465 118 Q476 100 487 118 Z" fill="none" stroke={LIT} strokeWidth="1.2" opacity="0.75" />
+          <path d="M470 114 Q476 104 482 114 Z" fill="none" stroke={LIT} strokeWidth="1" opacity="0.6" />
+          <line x1="476" y1="62" x2="476" y2="92" stroke={NEAR} strokeWidth="2.4" /><Beacon x={476} y={64} d={0.9} />
+          <Win x={454} y={132} w={44} h={104} seed={27} step={6} />
+        </g>
       </g>
     ),
     hongkong: (
       <g>
-        {/* Victoria Peak behind */}
-        <path d="M60 240 Q 200 120 360 190 Q 520 118 720 200 L720 240 Z" fill="oklch(0.28 0.05 280)" opacity="0.55" />
-        {/* IFC — tall with crown */}
-        <rect x="300" y="70" width="52" height="170" fill={INKB} />
-        <path d="M300 70 L306 52 L346 52 L352 70 Z" fill={INKB} />
-        <g stroke={INKB} strokeWidth="2">{[308,318,328,338,344].map((x,i)=><line key={i} x1={x} y1="38" x2={x} y2="52" />)}</g>
-        <Windows x={302} y={74} w={48} h={164} seed={43} step={6} />
-        {/* Bank of China — diagonals */}
-        <path d="M440 240 L440 120 L472 84 L504 120 L504 240 Z" fill={INKB2} />
-        <line x1="472" y1="56" x2="472" y2="84" stroke={INKB2} strokeWidth="2.5" /><line x1="482" y1="64" x2="482" y2="90" stroke={INKB2} strokeWidth="2" />
-        <g stroke="oklch(0.46 0.06 268)" strokeWidth="1.3" opacity="0.9">
-          <line x1="440" y1="150" x2="504" y2="200" /><line x1="504" y1="150" x2="440" y2="200" />
-          <line x1="440" y1="120" x2="504" y2="120" /><line x1="440" y1="200" x2="504" y2="150" />
+        {/* The Peak — ridge with radio tower */}
+        <path d="M0 240 Q 130 96 300 168 Q 470 92 610 150 Q 680 122 720 140 L720 240 Z" fill="oklch(0.30 0.05 290 / 0.6)" />
+        <line x1="196" y1="96" x2="196" y2="124" stroke="oklch(0.30 0.05 290)" strokeWidth="2" /><Beacon x={196} y={98} d={0.5} />
+        <g>
+          <rect x="128" y="140" width="46" height="100" fill={MID} /><Win x={128} y={142} w={46} h={96} seed={43} step={5.5} glowRatio={3} />
+          <rect x="240" y="156" width="38" height="84" fill={MID} /><Win x={240} y={158} w={38} h={80} seed={47} step={5.5} glowRatio={3} />
+          <rect x="600" y="134" width="44" height="106" fill={MID} /><Win x={600} y={136} w={44} h={102} seed={53} step={5.5} glowRatio={3} />
         </g>
-        <Windows x={444} y={124} w={56} h={112} seed={47} step={8} />
-        <rect x="170" y="140" width="48" height="100" fill={INKB} /><Windows x={170} y={142} w={48} h={96} seed={49} step={6} />
-        <rect x="560" y="128" width="44" height="112" fill={INKB} /><Windows x={560} y={130} w={44} h={108} seed={53} step={6} />
-        <rect x="240" y="164" width="38" height="76" fill={INKB2} /><Windows x={240} y={166} w={38} h={72} seed={57} step={6} />
-        <rect x="628" y="156" width="40" height="84" fill={INKB2} /><Windows x={628} y={158} w={40} h={80} seed={59} step={6} />
+        {/* IFC — crown of fins */}
+        <g>
+          <rect x="300" y="76" width="54" height="164" fill={NEAR} />
+          <path d="M300 76 L308 56 L346 56 L354 76 Z" fill={NEAR} />
+          <g stroke={NEAR} strokeWidth="2.2">{[310,320,330,340].map((x,i)=><line key={i} x1={x} y1="40" x2={x} y2="56" />)}</g>
+          <Beacon x={327} y={42} d={0.3} />
+          <Win x={302} y={80} w={50} h={158} seed={57} step={5.5} glowRatio={3} />
+          <rect x="349" y="76" width="5" height="164" fill="oklch(0.50 0.12 05 / 0.4)" />
+        </g>
+        {/* Bank of China — faceted diagonals */}
+        <g>
+          <path d="M440 240 L440 118 L474 80 L508 118 L508 240 Z" fill={NEAR} />
+          <path d="M440 118 L474 80 L474 148 Z" fill="oklch(0.28 0.05 275)" />
+          <g stroke="oklch(0.52 0.07 270)" strokeWidth="1.4" opacity="0.95">
+            <line x1="440" y1="150" x2="508" y2="205" /><line x1="508" y1="150" x2="440" y2="205" />
+            <line x1="440" y1="118" x2="508" y2="118" /><line x1="440" y1="205" x2="508" y2="150" />
+          </g>
+          <line x1="474" y1="52" x2="474" y2="80" stroke={NEAR} strokeWidth="2.4" /><Beacon x={474} y={54} d={1.2} />
+          <Win x={444} y={122} w={60} h={112} seed={59} step={7} glowRatio={3} />
+        </g>
       </g>
     ),
     losangeles: (
       <g>
-        {/* Low sun, big and golden */}
-        <circle cx="560" cy="150" r="46" fill="oklch(0.88 0.13 65)" opacity="0.95" />
-        <circle cx="560" cy="150" r="70" fill="oklch(0.85 0.13 60)" opacity="0.25" />
-        {/* US Bank tower — rounded crown */}
-        <rect x="300" y="100" width="44" height="140" fill={INKB} /><path d="M300 100 Q322 84 344 100 Z" fill={INKB} />
-        <Windows x={302} y={102} w={40} h={136} seed={61} step={7} />
-        <rect x="370" y="140" width="40" height="100" fill={INKB2} /><Windows x={370} y={142} w={40} h={96} seed={63} />
-        <rect x="250" y="156" width="36" height="84" fill={INKB2} /><Windows x={250} y={158} w={36} h={80} seed={67} />
-        <path d="M430 240 L436 150 L462 150 L468 240 Z" fill={INKB} /><Windows x={438} y={154} w={24} h={82} seed={69} step={6} />
-        {/* Hills */}
-        <path d="M0 240 Q 120 190 260 226 L 0 240 Z" fill="oklch(0.30 0.05 90)" opacity="0.7" />
-        {/* Palms */}
-        {[120, 170, 660].map((px, i) => (
+        {/* Enormous low sun with banded glow */}
+        <circle cx="540" cy="158" r="78" fill="oklch(0.88 0.11 60)" opacity="0.28" />
+        <circle cx="540" cy="158" r="56" fill="oklch(0.90 0.12 62)" opacity="0.5" />
+        <circle cx="540" cy="158" r="40" fill="oklch(0.93 0.12 68)" />
+        <rect x="440" y="176" width="200" height="3" fill={c.sky[3]} opacity="0.55" />
+        <rect x="452" y="188" width="176" height="2.4" fill={c.sky[3]} opacity="0.4" />
+        {/* Hills with house lights */}
+        <path d="M0 240 Q 130 178 300 216 L0 240 Z" fill="oklch(0.33 0.05 100 / 0.75)" />
+        {Array.from({length:8}).map((_,i)=><rect key={i} x={30+i*28} y={206+(i%3)*6} width="2" height="2" fill={LIT} opacity="0.8" />)}
+        <g>
+          <rect x="316" y="106" width="42" height="134" fill={NEAR} /><path d="M316 106 Q337 90 358 106 Z" fill={NEAR} />
+          <rect x="316" y="106" width="42" height="6" fill={LIT2} opacity="0.7" />
+          <Win x={318} y={112} w={38} h={126} seed={61} step={6.5} />
+          <rect x="380" y="146" width="38" height="94" fill={MID} /><Win x={380} y={148} w={38} h={90} seed={63} />
+          <path d="M436 240 L442 152 L468 152 L474 240 Z" fill={MID} /><Win x={444} y={156} w={24} h={80} seed={69} step={5.5} />
+          <Beacon x={337} y={92} d={0.6} />
+        </g>
+        {/* Palms — inside the glass, close */}
+        {[96, 154, 664].map((px, i) => (
           <g key={i}>
-            <path d={`M${px} 240 Q ${px + 3} 200 ${px + 1} 186`} stroke="oklch(0.24 0.04 90)" strokeWidth="3" fill="none" />
-            <g stroke="oklch(0.30 0.06 130)" strokeWidth="2" fill="none">
-              <path d={`M${px + 1} 186 q -16 -8 -26 2`} /><path d={`M${px + 1} 186 q 16 -8 26 2`} />
-              <path d={`M${px + 1} 186 q -10 -14 -20 -12`} /><path d={`M${px + 1} 186 q 10 -14 20 -12`} />
-              <path d={`M${px + 1} 186 q 2 -16 0 -18`} />
+            <path d={`M${px} 240 Q ${px + 5} 196 ${px + 2} 178`} stroke="oklch(0.20 0.04 120)" strokeWidth="4" fill="none" />
+            <g stroke="oklch(0.24 0.06 130)" strokeWidth="2.4" fill="none" strokeLinecap="round">
+              <path d={`M${px + 2} 178 q -20 -10 -32 3`} /><path d={`M${px + 2} 178 q 20 -10 32 3`} />
+              <path d={`M${px + 2} 178 q -13 -17 -25 -15`} /><path d={`M${px + 2} 178 q 13 -17 25 -15`} />
+              <path d={`M${px + 2} 178 q 2 -20 -1 -22`} />
             </g>
           </g>
         ))}
@@ -346,128 +416,285 @@ function Scene({ scene = 'chicago', atmo = {} }) {
     ),
     sanfrancisco: (
       <g>
-        {/* Fog band */}
-        <rect x="0" y="150" width="720" height="34" fill="oklch(0.88 0.015 80)" opacity="0.5" style={{ filter: 'blur(6px)' }} />
-        {/* Transamerica pyramid */}
-        <path d="M330 240 L362 70 L394 240 Z" fill={INKB} /><line x1="362" y1="44" x2="362" y2="70" stroke={INKB} strokeWidth="2.5" />
-        <g fill={LIT} opacity="0.8">{[110,130,150,170,190,210].map((y,i)=><rect key={i} x={362-(y-70)/7} y={y} width={((y-70)/7)*2} height="2" opacity="0.35" />)}</g>
-        {/* Golden Gate towers */}
-        <g stroke="oklch(0.52 0.14 30)" strokeWidth="4" fill="none">
-          <line x1="520" y1="240" x2="520" y2="120" /><line x1="640" y1="240" x2="640" y2="120" />
-          <line x1="504" y1="138" x2="656" y2="138" /><line x1="504" y1="168" x2="656" y2="168" />
+        <path d="M0 240 L0 176 L60 176 L60 158 L120 158 L120 182 L200 182 L200 162 L280 162 L280 186 L360 186 L360 168 L430 168 L430 240 Z" fill={FAR} />
+        {/* Transamerica + Coit */}
+        <path d="M150 240 L182 78 L214 240 Z" fill={MID} />
+        <g fill={LIT} opacity="0.75">{[120,140,160,180,200,220].map((y,i)=><rect key={i} x={182-(y-78)/7.4} y={y} width={((y-78)/7.4)*2} height="1.8" opacity="0.4" />)}</g>
+        <line x1="182" y1="56" x2="182" y2="78" stroke={MID} strokeWidth="2.2" /><Beacon x={182} y={58} d={0.8} />
+        <path d="M92 240 L100 168 L114 168 L122 240 Z" fill={MID} /><rect x="98" y="158" width="18" height="12" rx="5" fill={MID} />
+        <rect x="250" y="150" width="40" height="90" fill={MID} /><Win x={250} y={152} w={40} h={86} seed={71} step={6} />
+        {/* Golden Gate — near, detailed, International Orange */}
+        <g>
+          <g stroke="oklch(0.55 0.15 32)" strokeWidth="6" fill="none">
+            <line x1="490" y1="240" x2="490" y2="96" /><line x1="646" y1="240" x2="646" y2="96" />
+          </g>
+          <g stroke="oklch(0.55 0.15 32)" strokeWidth="3.4" fill="none">
+            <line x1="478" y1="112" x2="658" y2="112" /><line x1="478" y1="148" x2="658" y2="148" />
+            <line x1="478" y1="96" x2="502" y2="96" /><line x1="634" y1="96" x2="658" y2="96" />
+          </g>
+          <path d="M420 208 Q 490 100 568 186 Q 646 100 720 196" stroke="oklch(0.58 0.16 34)" strokeWidth="2.6" fill="none" />
+          <g stroke="oklch(0.55 0.15 32)" strokeWidth="1.1" opacity="0.95">
+            {[440,456,472,508,524,540,556,590,606,622,662,678,694].map((x,i)=>{
+              const t = x < 568 ? Math.abs(x-490)/78 : Math.abs(x-646)/78;
+              const y = 186 - (1 - t*t) * 84;
+              return <line key={i} x1={x} y1={Math.max(y,100)} x2={x} y2="204" />;
+            })}
+          </g>
+          <rect x="420" y="200" width="300" height="7" fill="oklch(0.48 0.13 32)" />
+          <Beacon x={490} y={92} d={0.2} /><Beacon x={646} y={92} d={1.0} />
         </g>
-        <path d="M460 200 Q 520 118 580 178 Q 640 118 700 196" stroke="oklch(0.52 0.14 30)" strokeWidth="2" fill="none" />
-        <g stroke="oklch(0.52 0.14 30)" strokeWidth="1" opacity="0.8">
-          {[535,550,565,595,610,625].map((x,i)=><line key={i} x1={x} y1={x<580?140+(x-520)*0.5:140+(640-x)*0.5} x2={x} y2="196" />)}
-        </g>
-        <rect x="150" y="140" width="42" height="100" fill={INKB2} /><Windows x={150} y={142} w={42} h={96} seed={71} step={6} />
-        <rect x="220" y="168" width="36" height="72" fill={INKB} /><Windows x={220} y={170} w={36} h={68} seed={73} step={6} />
-        <path d="M96 240 L104 176 L116 176 L124 240 Z" fill={INKB2} />
+        {/* Fog banks — drifting */}
+        <rect x="-40" y="150" width="820" height="30" fill="oklch(0.90 0.012 80)" opacity="0.42" style={{ filter: 'blur(9px)', animation: 'sc-drift 34s ease-in-out infinite alternate' }} />
+        <rect x="-40" y="196" width="820" height="22" fill="oklch(0.92 0.010 82)" opacity="0.3" style={{ filter: 'blur(10px)', animation: 'sc-drift 44s ease-in-out infinite alternate-reverse' }} />
       </g>
     ),
   };
 
+  // Window geometry (all % of stage)
+  const WIN = { left: '25%', width: '54%', top: '4.5%', height: '60%' };
+  const lampOn = !!atmo.lamp;
+  const fireOn = !!atmo.fireplace;
+
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'oklch(0.955 0.012 88)', overflow: 'hidden' }}>
-      {/* Paper wall — faint ruled lines + margin rule */}
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.45,
-        background: 'repeating-linear-gradient(to bottom, transparent 0 46px, oklch(0.86 0.014 80 / 0.55) 46px 47px)' }} />
-      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 64, width: 1, background: 'oklch(0.60 0.19 35 / 0.16)' }} />
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden',
+      background: 'linear-gradient(to bottom, oklch(0.925 0.013 84) 0%, oklch(0.945 0.012 86) 40%, oklch(0.950 0.012 87) 100%)' }}>
 
-      {/* The window — dusk pouring in */}
-      <div style={{
-        position: 'absolute', left: '50%', top: '6%', transform: 'translateX(-50%)',
-        width: 'min(72%, 860px)', height: '58%',
-        borderRadius: 18,
-        border: '10px solid oklch(0.88 0.016 80)',
-        outline: '1px solid oklch(0.78 0.02 76)',
-        boxShadow: '0 30px 60px -30px oklch(0.3 0.04 60 / 0.4), inset 0 0 0 1px oklch(0.75 0.02 75)',
-        overflow: 'hidden',
-        background: `linear-gradient(to bottom, ${c.sky[0]} 0%, ${c.sky[1]} 62%, ${c.sky[2]} 100%)`,
-      }}>
-        {/* Stars */}
-        {Array.from({ length: 14 }).map((_, i) => (
-          <div key={'s' + i} style={{ position: 'absolute', left: `${(i * 41 + 13) % 96 + 2}%`, top: `${(i * 17) % 34 + 3}%`,
-            width: 1.6, height: 1.6, borderRadius: '50%', background: 'oklch(0.95 0.02 85)',
-            animation: `sc-twinkle ${2.4 + (i % 5) * 0.8}s ease-in-out ${i * 0.5}s infinite` }} />
-        ))}
-        {c.moon && (
-          <div style={{ position: 'absolute', right: '14%', top: '10%', width: 44, height: 44, borderRadius: '50%',
-            background: 'oklch(0.93 0.03 90)', boxShadow: '0 0 24px oklch(0.93 0.03 90 / 0.5), inset -9px -6px 0 oklch(0.82 0.04 85)' }} />
-        )}
+      {/* Wall texture — plaster, barely there */}
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.35,
+        background: 'repeating-linear-gradient(to bottom, transparent 0 52px, oklch(0.87 0.013 80 / 0.5) 52px 53px)' }} />
 
-        {/* Skyline */}
-        <svg viewBox="0 0 720 240" preserveAspectRatio="xMidYMax slice" style={{ position: 'absolute', left: 0, right: 0, bottom: c.water ? '12%' : 0, width: '100%', height: '78%' }}>
-          {skylines[scene] || skylines.chicago}
-        </svg>
+      {/* City light wash on the wall around the window */}
+      <div style={{ position: 'absolute', left: '12%', top: '-6%', width: '80%', height: '86%', pointerEvents: 'none',
+        background: `radial-gradient(ellipse at 50% 42%, ${c.glow.replace(')', ' / 0.16)')} 0%, transparent 62%)`, filter: 'blur(14px)' }} />
 
-        {/* Water with shimmering reflections */}
-        {c.water && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '12%', background: `linear-gradient(to bottom, oklch(0.30 0.05 260), oklch(0.22 0.04 265))` }}>
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} style={{ position: 'absolute', left: `${(i * 29 + 8) % 88 + 4}%`, top: `${(i * 23) % 70 + 10}%`,
-                width: 18 + (i % 3) * 10, height: 1.6, background: LIT, opacity: 0.5,
-                animation: `window-shimmer ${2 + (i % 4) * 0.7}s ease-in-out ${i * 0.3}s infinite` }} />
+      {/* ── Fireplace — built into the wall, tucked behind the desk ── */}
+      {fireOn && (
+        <div style={{ position: 'absolute', left: '2.5%', bottom: '15%', width: 210, height: 200, zIndex: 2 }}>
+          <svg viewBox="0 0 210 200" width="210" height="200">
+            <rect x="14" y="30" width="182" height="170" rx="4" fill="oklch(0.885 0.016 78)" />
+            <rect x="14" y="30" width="182" height="170" rx="4" fill="none" stroke="oklch(0.79 0.02 74)" strokeWidth="1.5" />
+            <rect x="6" y="18" width="198" height="16" rx="3" fill="oklch(0.86 0.018 76)" stroke="oklch(0.76 0.02 72)" strokeWidth="1.2" />
+            <rect x="6" y="34" width="198" height="4" fill="oklch(0.30 0.03 60 / 0.12)" />
+            {/* Mantel props: books + tiny clock */}
+            <g>
+              <rect x="26" y="2" width="7" height="17" rx="1" fill="oklch(0.52 0.14 33)" />
+              <rect x="35" y="4" width="6" height="15" rx="1" fill="oklch(0.45 0.06 130)" />
+              <rect x="43" y="0" width="7" height="19" rx="1" fill="oklch(0.60 0.10 70)" transform="rotate(7 46 19)" />
+              <circle cx="172" cy="10" r="8.5" fill="oklch(0.94 0.008 88)" stroke="oklch(0.40 0.03 60)" strokeWidth="1.4" />
+              <line x1="172" y1="10" x2="172" y2="4.5" stroke="oklch(0.30 0.02 60)" strokeWidth="1.2" />
+              <line x1="172" y1="10" x2="176" y2="12" stroke="oklch(0.30 0.02 60)" strokeWidth="1" />
+            </g>
+            {/* Firebox — recessed with depth */}
+            <path d="M46 200 L46 92 Q 105 56 164 92 L164 200 Z" fill="oklch(0.13 0.02 45)" />
+            <path d="M46 92 Q 105 56 164 92 L164 100 Q 105 66 46 100 Z" fill="oklch(0.09 0.015 45)" />
+            <ellipse cx="105" cy="192" rx="52" ry="9" fill="oklch(0.20 0.035 45)" />
+            <rect x="66" y="180" width="78" height="9" rx="4.5" fill="oklch(0.36 0.06 55)" transform="rotate(-4 105 184)" />
+            <rect x="70" y="186" width="70" height="9" rx="4.5" fill="oklch(0.30 0.05 50)" transform="rotate(5 105 190)" />
+            {/* Embers */}
+            {[86, 100, 116, 128].map((x, i) => (
+              <circle key={i} cx={x} cy={190 - (i % 2) * 4} r="1.6" fill="oklch(0.72 0.17 45)"
+                style={{ animation: `beacon ${1.2 + i * 0.4}s ease-in-out ${i * 0.3}s infinite` }} />
             ))}
-          </div>
-        )}
-
-        {/* Weather — outside the glass */}
-        {atmo.snow && Array.from({ length: 26 }).map((_, i) => (
-          <div key={'sn' + i} style={{ position: 'absolute', left: `${(i * 37 + 5) % 98}%`, top: '-4%',
-            width: i % 3 === 0 ? 4 : 2.6, height: i % 3 === 0 ? 4 : 2.6, borderRadius: '50%',
-            background: 'oklch(0.97 0.005 90)', opacity: 0.9, '--sway': `${(i % 5) * 8 - 16}px`,
-            animation: `snow-fall ${4.5 + (i % 6) * 1.3}s linear ${(i * 0.53) % 5}s infinite` }} />
-        ))}
-        {atmo.autumn && Array.from({ length: 14 }).map((_, i) => (
-          <div key={'lf' + i} style={{ position: 'absolute', left: `${(i * 53 + 9) % 94}%`, top: '-5%',
-            width: 8, height: 5.5, borderRadius: '60% 0 60% 0',
-            background: ['oklch(0.62 0.15 45)', 'oklch(0.70 0.14 70)', 'oklch(0.55 0.15 35)'][i % 3],
-            '--sway': `${(i % 4) * 18 - 36}px`, '--spin': `${180 + (i % 5) * 90}deg`,
-            animation: `leaf-fall ${5 + (i % 5) * 1.4}s ease-in ${(i * 0.71) % 6}s infinite` }} />
-        ))}
-
-        {/* Glass reflection */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'linear-gradient(112deg, transparent 42%, oklch(1 0 0 / 0.10) 46%, oklch(1 0 0 / 0.04) 55%, transparent 60%)' }} />
-      </div>
-      {/* Window sill */}
-      <div style={{ position: 'absolute', left: '50%', top: 'calc(6% + 58%)', transform: 'translateX(-50%)',
-        width: 'min(76%, 900px)', height: 12, background: 'oklch(0.90 0.015 80)', borderRadius: 3,
-        boxShadow: '0 8px 16px -8px oklch(0.3 0.04 60 / 0.35)' }} />
-
-      {/* Fireplace — inside the room, lower left */}
-      {atmo.fireplace && (
-        <>
-          <div style={{ position: 'absolute', left: '4%', bottom: '14%', width: 150, height: 130 }}>
-            <svg viewBox="0 0 150 130" width="150" height="130">
-              <rect x="10" y="10" width="130" height="112" rx="6" fill="oklch(0.90 0.02 70)" stroke="oklch(0.72 0.03 65)" strokeWidth="2" />
-              <rect x="0" y="0" width="150" height="14" rx="4" fill="oklch(0.86 0.02 68)" stroke="oklch(0.72 0.03 65)" strokeWidth="1.5" />
-              <path d="M32 118 L32 62 Q 75 30 118 62 L118 118 Z" fill="oklch(0.16 0.02 40)" />
-              <ellipse cx="75" cy="112" rx="34" ry="7" fill="oklch(0.24 0.04 40)" />
-              <rect x="48" y="104" width="54" height="7" rx="3.5" fill="oklch(0.34 0.06 55)" transform="rotate(-4 75 107)" />
-              <rect x="50" y="108" width="50" height="7" rx="3.5" fill="oklch(0.28 0.05 50)" transform="rotate(5 75 111)" />
-            </svg>
-            {/* Flames */}
-            {[{ x: 62, s: 1, d: 0 }, { x: 75, s: 1.35, d: 0.25 }, { x: 88, s: 0.85, d: 0.5 }].map((f, i) => (
-              <div key={i} style={{ position: 'absolute', left: f.x - 8, bottom: 24, width: 16, height: 34 * f.s,
-                borderRadius: '50% 50% 42% 42% / 68% 68% 32% 32%',
-                background: 'linear-gradient(to top, oklch(0.62 0.19 35), oklch(0.78 0.16 65) 55%, oklch(0.88 0.12 85))',
-                transformOrigin: 'bottom center',
-                animation: `flame-dance ${0.9 + i * 0.22}s ease-in-out ${f.d}s infinite`,
-                filter: 'blur(0.4px)' }} />
-            ))}
-          </div>
-          {/* Warm light spilling into the room */}
-          <div style={{ position: 'absolute', left: '-6%', bottom: '0%', width: '46%', height: '58%', pointerEvents: 'none',
-            background: 'radial-gradient(ellipse at 22% 78%, oklch(0.78 0.13 60 / 0.30), transparent 65%)',
-            animation: 'hearth-glow 2.6s ease-in-out infinite' }} />
-        </>
+          </svg>
+          {/* Flames — layered, alive */}
+          {[{ x: 84, s: 0.9, d: 0, hue: 45 }, { x: 98, s: 1.35, d: 0.22, hue: 55 }, { x: 114, s: 1.1, d: 0.45, hue: 50 }, { x: 126, s: 0.75, d: 0.6, hue: 42 }].map((f, i) => (
+            <div key={i} style={{ position: 'absolute', left: f.x - 9, bottom: 16, width: 18, height: 44 * f.s,
+              borderRadius: '50% 50% 44% 44% / 70% 70% 30% 30%',
+              background: `linear-gradient(to top, oklch(0.60 0.19 35), oklch(0.76 0.16 ${f.hue}) 50%, oklch(0.90 0.11 85))`,
+              transformOrigin: 'bottom center', mixBlendMode: 'multiply',
+              animation: `flame-dance ${0.8 + i * 0.17}s ease-in-out ${f.d}s infinite`, filter: 'blur(0.5px)' }} />
+          ))}
+          {/* Glow from the box */}
+          <div style={{ position: 'absolute', left: 30, bottom: 0, width: 150, height: 110, pointerEvents: 'none',
+            background: 'radial-gradient(ellipse at center bottom, oklch(0.75 0.15 55 / 0.5), transparent 70%)',
+            animation: 'hearth-glow 2.2s ease-in-out infinite' }} />
+        </div>
       )}
 
-      {/* Soft paper vignette */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at center, transparent 55%, oklch(0.82 0.02 75 / 0.35) 100%)' }} />
+      {/* ── The window — casing with depth, city behind glass ── */}
+      <div style={{ position: 'absolute', ...WIN, zIndex: 3 }}>
+        {/* Outer casing */}
+        <div style={{ position: 'absolute', inset: -14, borderRadius: 10,
+          background: 'linear-gradient(to bottom, oklch(0.90 0.014 80), oklch(0.86 0.016 76))',
+          boxShadow: '0 34px 70px -30px oklch(0.28 0.04 60 / 0.45), 0 4px 14px -6px oklch(0.28 0.04 60 / 0.25)' }} />
+        {/* Depth reveal */}
+        <div style={{ position: 'absolute', inset: -3, borderRadius: 6, background: 'oklch(0.72 0.02 72)',
+          boxShadow: 'inset 0 2px 5px oklch(0.25 0.03 60 / 0.45)' }} />
+
+        {/* Glass + city */}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 4, overflow: 'hidden',
+          background: `linear-gradient(to bottom, ${c.sky[0]} 0%, ${c.sky[1]} 40%, ${c.sky[2]} 74%, ${c.sky[3]} 100%)` }}>
+          {/* Stars */}
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={'s' + i} style={{ position: 'absolute', left: `${(i * 43 + 11) % 96 + 2}%`, top: `${(i * 15) % 30 + 2}%`,
+              width: 1.5, height: 1.5, borderRadius: '50%', background: 'oklch(0.95 0.02 85)',
+              animation: `sc-twinkle ${2.6 + (i % 5) * 0.9}s ease-in-out ${i * 0.5}s infinite` }} />
+          ))}
+          {c.moon && (
+            <div style={{ position: 'absolute', right: '12%', top: '8%', width: 40, height: 40, borderRadius: '50%',
+              background: 'oklch(0.94 0.025 92)', boxShadow: '0 0 30px oklch(0.94 0.03 90 / 0.55), inset -8px -5px 0 oklch(0.84 0.035 86)' }} />
+          )}
+
+          {/* Skyline — layered depth */}
+          <svg viewBox="0 0 720 240" preserveAspectRatio="xMidYMax slice"
+            style={{ position: 'absolute', left: 0, right: 0, bottom: c.water ? '11%' : 0, width: '100%', height: '82%' }}>
+            {skylines[scene] || skylines.chicago}
+          </svg>
+
+          {/* Water — reflected light */}
+          {c.water && (
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '11%',
+              background: `linear-gradient(to bottom, oklch(0.26 0.05 265), oklch(0.18 0.04 268))` }}>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} style={{ position: 'absolute', left: `${(i * 31 + 6) % 86 + 5}%`, top: `${(i * 27) % 68 + 8}%`,
+                  width: 14 + (i % 4) * 9, height: 1.5,
+                  background: i % 4 === 1 ? 'oklch(0.62 0.18 25)' : LIT, opacity: 0.55,
+                  animation: `window-shimmer ${1.8 + (i % 5) * 0.7}s ease-in-out ${i * 0.28}s infinite` }} />
+              ))}
+            </div>
+          )}
+
+          {/* Weather, outside the glass */}
+          {atmo.snow && Array.from({ length: 30 }).map((_, i) => (
+            <div key={'sn' + i} style={{ position: 'absolute', left: `${(i * 37 + 5) % 98}%`, top: '-4%',
+              width: i % 4 === 0 ? 4 : 2.4, height: i % 4 === 0 ? 4 : 2.4, borderRadius: '50%',
+              background: 'oklch(0.97 0.005 90)', opacity: 0.9, '--sway': `${(i % 5) * 9 - 18}px`,
+              filter: i % 4 === 0 ? 'blur(0.6px)' : 'none',
+              animation: `snow-fall ${4 + (i % 7) * 1.2}s linear ${(i * 0.47) % 5}s infinite` }} />
+          ))}
+          {atmo.rain && (
+            <>
+              {Array.from({ length: 22 }).map((_, i) => (
+                <div key={'rn' + i} style={{ position: 'absolute', left: `${(i * 41 + 7) % 97}%`, top: '-10%',
+                  width: 1.1, height: 22 + (i % 3) * 8, borderRadius: 2,
+                  background: 'linear-gradient(to bottom, transparent, oklch(0.92 0.01 240 / 0.55))',
+                  animation: `rain-streak ${0.9 + (i % 4) * 0.25}s linear ${(i * 0.19) % 1.4}s infinite` }} />
+              ))}
+              {/* Droplets clinging to the glass */}
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={'dp' + i} style={{ position: 'absolute', left: `${(i * 53 + 12) % 92 + 3}%`, top: `${(i * 29) % 55 + 6}%`,
+                  width: 4, height: 6.5, borderRadius: '46% 46% 60% 60%',
+                  background: 'linear-gradient(to bottom, oklch(1 0 0 / 0.42), oklch(0.85 0.01 240 / 0.30))',
+                  boxShadow: 'inset 0 -1px 1.5px oklch(1 0 0 / 0.5)',
+                  animation: `drop-slide ${5 + (i % 5) * 2.2}s ease-in ${(i * 1.3) % 7}s infinite` }} />
+              ))}
+              {/* Rain dims the city slightly */}
+              <div style={{ position: 'absolute', inset: 0, background: 'oklch(0.55 0.02 250 / 0.10)' }} />
+            </>
+          )}
+
+          {/* Glass: reflection + inner edge shadow */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+            background: 'linear-gradient(114deg, transparent 38%, oklch(1 0 0 / 0.09) 43%, oklch(1 0 0 / 0.03) 54%, transparent 60%), linear-gradient(250deg, transparent 74%, oklch(1 0 0 / 0.05) 82%, transparent 90%)' }} />
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 4,
+            boxShadow: 'inset 0 0 26px oklch(0.15 0.03 270 / 0.35)' }} />
+        </div>
+
+        {/* Muntin — one horizontal bar, high */}
+        <div style={{ position: 'absolute', left: 0, right: 0, top: '38%', height: 7, borderRadius: 2,
+          background: 'linear-gradient(to bottom, oklch(0.90 0.014 80), oklch(0.82 0.016 76))',
+          boxShadow: '0 2px 4px oklch(0.2 0.03 60 / 0.3)' }} />
+
+        {/* Curtains — framing the view, swaying barely */}
+        {['left', 'right'].map(side => (
+          <div key={side} style={{
+            position: 'absolute', top: -18, bottom: -8, [side]: -26, width: 56,
+            borderRadius: side === 'left' ? '0 6px 14px 0' : '6px 0 0 14px',
+            background: `repeating-linear-gradient(90deg,
+              oklch(0.55 0.15 35) 0 9px, oklch(0.64 0.16 40) 9px 17px, oklch(0.59 0.15 37) 17px 26px)`,
+            boxShadow: `${side === 'left' ? '6px' : '-6px'} 0 18px -6px oklch(0.25 0.05 40 / 0.4)`,
+            transformOrigin: 'top center',
+            animation: `curtain-sway ${7 + (side === 'left' ? 0 : 1.6)}s ease-in-out infinite`, zIndex: 4,
+          }} />
+        ))}
+
+        {/* Sill with returns */}
+        <div style={{ position: 'absolute', left: -22, right: -22, top: '100%', marginTop: 12, height: 13, borderRadius: 3,
+          background: 'linear-gradient(to bottom, oklch(0.92 0.012 82), oklch(0.85 0.016 78))',
+          boxShadow: '0 10px 20px -8px oklch(0.28 0.04 60 / 0.4)' }} />
+      </div>
+
+      {/* ── The desk — walnut, in the foreground ── */}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '19%', zIndex: 5,
+        background: 'linear-gradient(to bottom, oklch(0.46 0.055 55) 0%, oklch(0.40 0.05 52) 30%, oklch(0.34 0.045 50) 100%)' }}>
+        {/* Edge highlight */}
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2.5, background: 'oklch(0.62 0.07 60 / 0.9)' }} />
+        {/* Wood grain */}
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.30,
+          background: 'repeating-linear-gradient(94deg, transparent 0 34px, oklch(0.28 0.04 48 / 0.5) 34px 35.5px, transparent 35.5px 70px, oklch(0.30 0.04 50 / 0.35) 70px 71px)' }} />
+        {/* City light pooling on the desk */}
+        <div style={{ position: 'absolute', left: '26%', width: '52%', top: 0, height: '100%',
+          background: `linear-gradient(to bottom, ${c.glow.replace(')', ' / 0.22)')}, transparent 80%)`, filter: 'blur(6px)' }} />
+        {fireOn && (
+          <div style={{ position: 'absolute', left: 0, width: '34%', top: 0, height: '100%',
+            background: 'linear-gradient(to bottom, oklch(0.72 0.14 55 / 0.28), transparent 85%)', filter: 'blur(8px)',
+            animation: 'hearth-glow 2.2s ease-in-out infinite' }} />
+        )}
+      </div>
+
+      {/* ── Desk props ── */}
+      {/* Coffee, right of the mic */}
+      <div style={{ position: 'absolute', right: '21%', bottom: '13.5%', width: 74, height: 70, zIndex: 6 }}>
+        {atmo.coffee && [0, 1, 2].map(i => (
+          <div key={i} style={{ position: 'absolute', left: 22 + i * 9, bottom: 44, width: 7, height: 18,
+            borderRadius: '50%', background: 'oklch(0.94 0.008 88 / 0.65)', filter: 'blur(3px)',
+            animation: `steam-rise ${2.4 + i * 0.5}s ease-out ${i * 0.7}s infinite` }} />
+        ))}
+        <svg viewBox="0 0 74 70" width="74" height="70">
+          <ellipse cx="37" cy="62" rx="30" ry="5.5" fill="oklch(0.20 0.03 50 / 0.35)" />
+          <ellipse cx="37" cy="59" rx="26" ry="5" fill="oklch(0.88 0.014 80)" />
+          <path d="M20 32 L23 56 Q 37 62 51 56 L54 32 Z" fill="oklch(0.93 0.010 86)" stroke="oklch(0.74 0.02 74)" strokeWidth="1.2" />
+          <path d="M54 36 q 12 2 8 12 q -3 7 -10 6" fill="none" stroke="oklch(0.74 0.02 74)" strokeWidth="3.4" />
+          <ellipse cx="37" cy="32" rx="17" ry="4.5" fill={atmo.coffee ? 'oklch(0.32 0.05 55)' : 'oklch(0.85 0.012 80)'} stroke="oklch(0.74 0.02 74)" strokeWidth="1" />
+          <rect x="30" y="42" width="14" height="7" rx="2" fill="oklch(0.60 0.19 35 / 0.8)" />
+        </svg>
+      </div>
+      {/* Notebook + pencil, left of the mic */}
+      <div style={{ position: 'absolute', left: '20%', bottom: '11.5%', width: 120, height: 74, zIndex: 6, transform: 'rotate(-5deg)' }}>
+        <svg viewBox="0 0 120 74" width="120" height="74">
+          <rect x="6" y="10" width="96" height="58" rx="4" fill="oklch(0.20 0.03 50 / 0.30)" transform="translate(3 4)" />
+          <rect x="6" y="10" width="96" height="58" rx="4" fill="oklch(0.955 0.008 88)" stroke="oklch(0.78 0.02 76)" strokeWidth="1.2" />
+          <line x1="54" y1="12" x2="54" y2="66" stroke="oklch(0.82 0.016 78)" strokeWidth="1.4" />
+          {[22, 32, 42, 52].map((y, i) => <line key={i} x1="14" y1={y} x2="46" y2={y} stroke="oklch(0.80 0.02 76)" strokeWidth="1" />)}
+          {[22, 32, 42].map((y, i) => <line key={'r' + i} x1="62" y1={y} x2="94" y2={y} stroke="oklch(0.80 0.02 76)" strokeWidth="1" />)}
+          <path d="M60 52 q 8 -5 16 0 q 6 4 12 -1" fill="none" stroke="oklch(0.45 0.06 60)" strokeWidth="1.2" />
+          <g transform="rotate(14 100 30)">
+            <rect x="92" y="26" width="34" height="5" rx="1.5" fill="oklch(0.72 0.13 75)" />
+            <path d="M126 26 L133 28.5 L126 31 Z" fill="oklch(0.88 0.02 80)" />
+            <path d="M130.5 27.5 L133 28.5 L130.5 29.6 Z" fill="oklch(0.30 0.03 60)" />
+            <rect x="92" y="26" width="5" height="5" fill="oklch(0.60 0.19 35)" />
+          </g>
+        </svg>
+      </div>
+      {/* Desk lamp — left edge, throws real light */}
+      <div style={{ position: 'absolute', left: '6%', bottom: '12.5%', width: 130, height: 170, zIndex: 6 }}>
+        {lampOn && (
+          <div style={{ position: 'absolute', left: 6, bottom: -14, width: 190, height: 120, pointerEvents: 'none',
+            background: 'radial-gradient(ellipse at 34% 20%, oklch(0.92 0.09 85 / 0.55), transparent 68%)',
+            filter: 'blur(4px)', animation: 'lamp-warmth 3.2s ease-in-out infinite' }} />
+        )}
+        <svg viewBox="0 0 130 170" width="130" height="170">
+          <ellipse cx="46" cy="160" rx="30" ry="5.5" fill="oklch(0.20 0.03 50 / 0.4)" />
+          <ellipse cx="46" cy="156" rx="24" ry="5" fill="oklch(0.30 0.03 65)" />
+          <path d="M46 156 L46 96 Q 46 74 68 66 L82 61" stroke="oklch(0.34 0.035 68)" strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M46 156 L46 96 Q 46 74 68 66 L82 61" stroke="oklch(0.58 0.06 75)" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.6" />
+          <g transform="rotate(32 88 58)">
+            <path d="M70 44 L106 44 L98 72 L78 72 Z" fill={lampOn ? 'oklch(0.72 0.12 70)' : 'oklch(0.42 0.04 68)'} stroke="oklch(0.30 0.03 62)" strokeWidth="1.4" />
+            {lampOn && <ellipse cx="88" cy="73" rx="11" ry="3.5" fill="oklch(0.95 0.09 88)" opacity="0.95" />}
+          </g>
+        </svg>
+      </div>
+
+      {/* Room-wide warmth when the hearth or lamp is on */}
+      {(fireOn || lampOn) && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 7,
+          background: 'radial-gradient(ellipse at 18% 82%, oklch(0.75 0.12 55 / 0.10), transparent 58%)',
+          animation: fireOn ? 'hearth-glow 2.4s ease-in-out infinite' : 'none' }} />
+      )}
+
+      {/* Vignette */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 8,
+        background: 'radial-gradient(ellipse at center, transparent 52%, oklch(0.70 0.03 70 / 0.30) 100%)' }} />
     </div>
   );
 }

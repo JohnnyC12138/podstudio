@@ -98,7 +98,7 @@ function LiveLevel({ stream, segments = 10 }) {
 function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, roomId, isHost = true }) {
   const [phase, setPhase] = React.useState('greenRoom');
   const [scene, setScene] = React.useState(() => localStorage.getItem('podstudio-scene') || 'chicago');
-  const [atmo, setAtmo] = React.useState({ snow: false, autumn: false, fireplace: false });
+  const [atmo, setAtmo] = React.useState({ rain: false, snow: false, fireplace: false, lamp: true, coffee: true });
   const [sceneFlash, setSceneFlash] = React.useState(null);
   const changeScene = (k, label) => {
     setScene(k);
@@ -488,9 +488,11 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
     { k: 'sanfrancisco', l: 'San Francisco', sub: 'fog on the bridge' },
   ];
   const atmoOptions = [
-    { k: 'snow',      l: 'Snowfall',  sub: 'outside the glass' },
-    { k: 'autumn',    l: 'Autumn',    sub: 'leaves drifting' },
-    { k: 'fireplace', l: 'Fireplace', sub: 'warm & crackling' },
+    { k: 'rain',      l: 'Rain on the glass', sub: 'droplets sliding down' },
+    { k: 'snow',      l: 'Snowfall',          sub: 'outside the window' },
+    { k: 'fireplace', l: 'Fireplace',         sub: 'built into the wall' },
+    { k: 'lamp',      l: 'Desk lamp',         sub: 'a pool of warm light' },
+    { k: 'coffee',    l: 'Fresh coffee',      sub: 'steam curling up' },
   ];
 
   // Hidden layer that plays every remote peer's audio (and keeps meters fed)
