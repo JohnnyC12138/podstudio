@@ -225,7 +225,9 @@ function HomePage({ setPage, openInvite, tracks = [] }) {
   return (
     <div style={{ flex: 1, overflow: 'auto', background: PAGE_BG, color: ink, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', padding: '26px 40px', flexShrink: 0 }}>
-        <span className="display" style={{ fontSize: 21, color: ink }}>Podstudio</span>
+        <span className="display" title="回到开场页 · Back to the opening page"
+          onClick={() => { localStorage.removeItem('podstudio-entered'); window.location.reload(); }}
+          style={{ fontSize: 21, color: ink, cursor: 'pointer' }}>Podstudio</span>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 26, alignItems: 'center' }}>
           <a onClick={() => setPage('studio')} style={{ fontSize: 13.5, color: inkSoft, cursor: 'pointer' }}>Studio</a>
