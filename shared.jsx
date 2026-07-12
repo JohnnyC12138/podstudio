@@ -254,22 +254,51 @@ function Scene({ scene = 'chicago', atmo = {}, voice = 0 }) {
   };
   const c = CITIES[scene] || CITIES.chicago;
 
-  // Depth palette — atmospheric perspective (far = pale, near = ink)
-  const FAR  = 'oklch(0.45 0.045 280 / 0.55)';
-  const MID  = 'oklch(0.31 0.05 275)';
-  const NEAR = 'oklch(0.20 0.04 270)';
+  // ── The window follows your clock ──
+  // Authored palettes are "dusk identity"; we shift lightness & chroma by
+  // the local hour so the same city reads as morning, noon, dusk or night.
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60;
+  const phase =
+    hour < 5.5 ? 'night' :
+    hour < 8 ? 'dawn' :
+    hour < 11.5 ? 'morning' :
+    hour < 16 ? 'midday' :
+    hour < 18.5 ? 'golden' :
+    hour < 20.5 ? 'dusk' : 'night';
+  const PHASES = {
+    night:   { dl: -0.12, cm: 0.85, lit: 1,    stars: 1 },
+    dawn:    { dl: +0.14, cm: 0.75, lit: 0.45, stars: 0.35 },
+    morning: { dl: +0.34, cm: 0.50, lit: 0.08, stars: 0 },
+    midday:  { dl: +0.42, cm: 0.40, lit: 0.02, stars: 0 },
+    golden:  { dl: +0.10, cm: 1.05, lit: 0.35, stars: 0 },
+    dusk:    { dl: 0,     cm: 1,    lit: 0.8,  stars: 0.5 },
+  };
+  const P = PHASES[phase];
+  const adjSky = (s) => s.replace(/oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/,
+    (_, L, C, H) => `oklch(${Math.min(0.96, Math.max(0.10, +L + P.dl)).toFixed(3)} ${(+C * P.cm).toFixed(3)} ${H})`);
+  const sky = c.sky.map(adjSky);
+  const litFactor = P.lit;
+  const starsOp = P.stars;
+  const isDaylight = phase === 'morning' || phase === 'midday';
+
+  // Depth palette — atmospheric perspective; buildings pale out in daylight
+  const FAR  = isDaylight ? 'oklch(0.62 0.035 280 / 0.5)' : 'oklch(0.45 0.045 280 / 0.55)';
+  const MID  = isDaylight ? 'oklch(0.52 0.04 275)' : 'oklch(0.31 0.05 275)';
+  const NEAR = isDaylight ? 'oklch(0.40 0.04 270)' : 'oklch(0.20 0.04 270)';
   const LIT  = 'oklch(0.86 0.12 78)';
   const LIT2 = 'oklch(0.78 0.10 60)';
 
-  // Deterministic warm window grid for a building face
+  // Deterministic warm window grid — density follows the hour
   const Win = ({ x, y, w, h, seed = 1, step = 6.5, glowRatio = 2 }) => {
+    if (litFactor < 0.05) return null;
     const dots = []; let k = seed;
     for (let wy = y + 3; wy < y + h - 3; wy += step) {
       for (let wx = x + 2.5; wx < x + w - 2.5; wx += step) {
         k = (k * 1103515245 + 12345) % 2147483648;
-        if (k % 6 < glowRatio) dots.push(
+        if (k % 6 < glowRatio && (k >> 3) % 100 < litFactor * 100) dots.push(
           <rect key={`${wx}-${wy}`} x={wx} y={wy} width="2.1" height="2.6"
-            fill={k % 11 === 0 ? LIT2 : LIT} opacity={0.35 + (k % 55) / 100} />);
+            fill={k % 11 === 0 ? LIT2 : LIT} opacity={(0.35 + (k % 55) / 100) * Math.min(1, litFactor + 0.25)} />);
       }
     }
     return <g>{dots}</g>;
@@ -385,9 +414,11 @@ function Scene({ scene = 'chicago', atmo = {}, voice = 0 }) {
     losangeles: (
       <g>
         {/* Enormous low sun with banded glow */}
+        <g opacity={phase === 'night' ? 0.1 : 1}>
         <circle cx="180" cy="150" r="80" fill="oklch(0.88 0.11 60)" opacity="0.3" />
         <circle cx="180" cy="150" r="55" fill="oklch(0.90 0.12 62)" opacity="0.55" />
         <circle cx="180" cy="150" r="38" fill="oklch(0.94 0.12 70)" />
+        </g>
         <rect x="90" y="166" width="190" height="3" fill={c.sky[3]} opacity="0.6" />
         <rect x="104" y="178" width="160" height="2.4" fill={c.sky[3]} opacity="0.45" />
         {/* Low hills with scattered house lights */}
@@ -537,16 +568,20 @@ function Scene({ scene = 'chicago', atmo = {}, voice = 0 }) {
 
         {/* Glass + city */}
         <div style={{ position: 'absolute', inset: 0, borderRadius: 4, overflow: 'hidden',
-          background: `linear-gradient(to bottom, ${c.sky[0]} 0%, ${c.sky[1]} 40%, ${c.sky[2]} 74%, ${c.sky[3]} 100%)` }}>
-          {/* Stars */}
-          {Array.from({ length: 12 }).map((_, i) => (
+          background: `linear-gradient(to bottom, ${sky[0]} 0%, ${sky[1]} 40%, ${sky[2]} 74%, ${sky[3]} 100%)` }}>
+          {/* Stars — only when the sky is dark enough */}
+          {starsOp > 0.05 && Array.from({ length: 12 }).map((_, i) => (
             <div key={'s' + i} style={{ position: 'absolute', left: `${(i * 43 + 11) % 96 + 2}%`, top: `${(i * 15) % 30 + 2}%`,
-              width: 1.5, height: 1.5, borderRadius: '50%', background: 'oklch(0.95 0.02 85)',
+              width: 1.5, height: 1.5, borderRadius: '50%', background: 'oklch(0.95 0.02 85)', opacity: starsOp,
               animation: `sc-twinkle ${2.6 + (i % 5) * 0.9}s ease-in-out ${i * 0.5}s infinite` }} />
           ))}
-          {c.moon && (
+          {c.moon && starsOp > 0.3 && (
             <div style={{ position: 'absolute', right: '12%', top: '8%', width: 40, height: 40, borderRadius: '50%',
-              background: 'oklch(0.94 0.025 92)', boxShadow: '0 0 30px oklch(0.94 0.03 90 / 0.55), inset -8px -5px 0 oklch(0.84 0.035 86)' }} />
+              background: 'oklch(0.94 0.025 92)', boxShadow: '0 0 30px oklch(0.94 0.03 90 / 0.55), inset -8px -5px 0 oklch(0.84 0.035 86)', opacity: Math.min(1, starsOp + 0.2) }} />
+          )}
+          {isDaylight && (
+            <div style={{ position: 'absolute', right: '16%', top: '10%', width: 34, height: 34, borderRadius: '50%',
+              background: 'oklch(0.97 0.05 95)', boxShadow: '0 0 44px 14px oklch(0.95 0.07 90 / 0.55)' }} />
           )}
 
           {/* Skyline — layered depth */}
@@ -558,11 +593,11 @@ function Scene({ scene = 'chicago', atmo = {}, voice = 0 }) {
           {/* Water — reflected light */}
           {c.water && (
             <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '11%',
-              background: `linear-gradient(to bottom, oklch(0.26 0.05 265), oklch(0.18 0.04 268))` }}>
+              background: `linear-gradient(to bottom, ${adjSky('oklch(0.26 0.05 265)')}, ${adjSky('oklch(0.18 0.04 268)')})` }}>
               {Array.from({ length: 10 }).map((_, i) => (
                 <div key={i} style={{ position: 'absolute', left: `${(i * 31 + 6) % 86 + 5}%`, top: `${(i * 27) % 68 + 8}%`,
                   width: 14 + (i % 4) * 9, height: 1.5,
-                  background: i % 4 === 1 ? 'oklch(0.62 0.18 25)' : LIT, opacity: 0.55,
+                  background: i % 4 === 1 ? 'oklch(0.62 0.18 25)' : LIT, opacity: 0.55 * Math.max(litFactor, 0.15),
                   animation: `window-shimmer ${1.8 + (i % 5) * 0.7}s ease-in-out ${i * 0.28}s infinite` }} />
               ))}
             </div>

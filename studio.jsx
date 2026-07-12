@@ -645,7 +645,7 @@ function StudioPage({ openInvite, openMusic, studioMode, onRecordingComplete, ro
           </div>
 
           <div style={{ padding: '16px 10px 0', fontSize: 10.5, color: 'var(--fg-3)', lineHeight: 1.5 }}>
-            The view is yours alone — it never touches the audio.
+            The window follows your local clock — and never touches the audio.
           </div>
         </aside>
 
