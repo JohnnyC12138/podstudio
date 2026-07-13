@@ -33,6 +33,12 @@ function StampMic() {
         <line x1="43" y1="34" x2="53" y2="34" opacity="0.5" />
         <line x1="43" y1="40" x2="53" y2="40" opacity="0.5" />
         <line x1="43" y1="46" x2="53" y2="46" opacity="0.5" />
+        <path d="M64 38 q6 6 0 14" opacity="0.5" strokeWidth="1.3">
+          <animate attributeName="opacity" values="0;0.6;0" dur="2.2s" repeatCount="indefinite" />
+        </path>
+        <path d="M70 34 q9 9 0 22" opacity="0.3" strokeWidth="1.2">
+          <animate attributeName="opacity" values="0;0.45;0" dur="2.2s" begin="0.35s" repeatCount="indefinite" />
+        </path>
       </g>
       <text x="48" y="97" textAnchor="middle" fontSize="8.5" fill={STAMP_INK} fontFamily="Georgia, serif" fontStyle="italic">the mic</text>
     </StampFrame>
@@ -44,8 +50,16 @@ function StampCassette() {
     <StampFrame>
       <g stroke={STAMP_INK} strokeWidth="1.5" fill="none" strokeLinecap="round">
         <rect x="22" y="34" width="52" height="34" rx="4" />
-        <circle cx="37" cy="51" r="6" />
-        <circle cx="59" cy="51" r="6" />
+        <g>
+          <circle cx="37" cy="51" r="6" />
+          <line x1="37" y1="46.5" x2="37" y2="49" strokeWidth="1.2" />
+          <animateTransform attributeName="transform" type="rotate" from="0 37 51" to="360 37 51" dur="4s" repeatCount="indefinite" />
+        </g>
+        <g>
+          <circle cx="59" cy="51" r="6" />
+          <line x1="59" y1="46.5" x2="59" y2="49" strokeWidth="1.2" />
+          <animateTransform attributeName="transform" type="rotate" from="0 59 51" to="360 59 51" dur="2.6s" repeatCount="indefinite" />
+        </g>
         <line x1="43" y1="51" x2="53" y2="51" />
         <path d="M28 68 l4 -6 M68 68 l-4 -6" opacity="0.5" />
         <rect x="30" y="39" width="36" height="5" rx="2.5" fill="oklch(0.72 0.13 70)" stroke="none" opacity="0.85" />
@@ -62,7 +76,9 @@ function StampHeadphones() {
         <path d="M30 58 v-8 a18 18 0 0 1 36 0 v8" />
         <rect x="26" y="56" width="9" height="16" rx="4" fill={STAMP_PAPER} />
         <rect x="61" y="56" width="9" height="16" rx="4" fill={STAMP_PAPER} />
-        <path d="M40 82 q8 6 16 0" opacity="0.5" strokeDasharray="2 3" />
+        <path d="M40 82 q8 6 16 0" opacity="0.6" strokeDasharray="2 3">
+          <animate attributeName="stroke-dashoffset" values="0;-10" dur="1.4s" repeatCount="indefinite" />
+        </path>
       </g>
       <text x="48" y="99" textAnchor="middle" fontSize="8.5" fill={STAMP_INK} fontFamily="Georgia, serif" fontStyle="italic">the ears</text>
     </StampFrame>
@@ -73,7 +89,9 @@ function StampOnAir() {
   return (
     <StampFrame>
       <g>
-        <rect x="24" y="38" width="48" height="24" rx="4" fill="oklch(0.60 0.16 28)" opacity="0.92" />
+        <rect x="24" y="38" width="48" height="24" rx="4" fill="oklch(0.60 0.16 28)" opacity="0.92">
+          <animate attributeName="opacity" values="0.92;0.55;0.92" dur="2.6s" repeatCount="indefinite" />
+        </rect>
         <text x="48" y="54" textAnchor="middle" fontSize="10" fontWeight="700" fill={STAMP_PAPER} fontFamily="Georgia, serif" letterSpacing="1.5">ON AIR</text>
         <g stroke={STAMP_INK} strokeWidth="1.2" opacity="0.55">
           <line x1="48" y1="30" x2="48" y2="38" />
@@ -129,8 +147,8 @@ function LandingPage({ setPage, openInvite }) {
               animation: `stamp-in 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) ${0.15 + i * 0.14}s both`,
               transition: 'transform 0.3s ease',
             }}
-              onMouseEnter={e => e.currentTarget.style.transform = `rotate(${rot}deg) translateY(${y - 12}px) scale(1.04)`}
-              onMouseLeave={e => e.currentTarget.style.transform = `rotate(${rot}deg) translateY(${y}px)`}>
+              onMouseEnter={e => { e.currentTarget.style.transform = `rotate(0deg) translateY(${y - 18}px) scale(1.1)`; e.currentTarget.style.zIndex = 9; e.currentTarget.style.filter = 'drop-shadow(0 18px 22px oklch(0.3 0.04 60 / 0.3))'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = `rotate(${rot}deg) translateY(${y}px)`; e.currentTarget.style.zIndex = ''; e.currentTarget.style.filter = ''; }}>
               <C />
             </div>
           ))}

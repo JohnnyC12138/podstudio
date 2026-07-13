@@ -8,7 +8,7 @@ const TWEAKS = /*EDITMODE-BEGIN*/{
 function App() {
   // Parse ?room= directly from URL — don't rely on room.jsx loading order
   const urlRoomId = new URLSearchParams(window.location.search).get('room') || null;
-  const [page, setPage] = React.useState(() => urlRoomId ? 'studio' : (localStorage.getItem('podstudio-page') || 'home'));
+  const [page, setPage] = React.useState(() => urlRoomId ? 'studio' : 'home');
   const [studioMode, setStudioMode] = React.useState(() => localStorage.getItem('podstudio-mode') || 'guests');
   const [modal, setModal] = React.useState(null);
   const [tweaks, setTweaks] = React.useState(TWEAKS);
@@ -30,9 +30,9 @@ function App() {
 
   // The stamp splash greets first-time visitors only — after you've stepped
   // into the app once, Home becomes a working desk
-  const [entered, setEntered] = React.useState(() => localStorage.getItem('podstudio-entered') === '1');
+  const [entered, setEntered] = React.useState(false);
   React.useEffect(() => {
-    if (page !== 'home' && !entered) { localStorage.setItem('podstudio-entered', '1'); setEntered(true); }
+    if (page !== 'home' && !entered) setEntered(true);
   }, [page, entered]);
 
   React.useEffect(() => { localStorage.setItem('podstudio-page', page); }, [page]);
